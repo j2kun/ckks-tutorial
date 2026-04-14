@@ -135,3 +135,79 @@ def inverse_canonical_embedding(values: np.ndarray) -> Polynomial:
     phase_factors = zeta ** (-np.arange(N))
     coeffs = (phase_factors * ifft_result) / N
     return Polynomial(coeffs, modulus_degree=N)
+
+
+# --- OpenFHE-compatible encoding support ---
+#
+# OpenFHE uses a different root ordering for the canonical embedding,
+# based on the Galois group of the cyclotomic ring. Slot i maps to the
+# root zeta^{5^i mod M}, where M = 2N. This ordering (vs. consecutive
+# odd powers) enables slot rotations: rotating by 1 slot corresponds
+# to the automorphism X -> X^5.
+#
+# The "special FFT" algorithms (FFTSpecial / FFTSpecialInv) from
+# Chen/Cheon/Kim/Kim (eprint 2018/1043) exploit this structure to
+# work directly on N/2 complex slot values without an explicit
+# Hermitian extension to N values.
+
+
+def rotation_group(n: int) -> list[int]:
+    """Compute root indices for OpenFHE-compatible CKKS encoding.
+
+    For the cyclotomic ring Z[x]/(x^N + 1) with M = 2N, returns
+    [5^i mod M for i in range(N/2)]. The generator 5 generates
+    the subgroup of (Z/MZ)* that acts on roots without complex
+    conjugation, enabling slot rotations via Galois automorphisms.
+    """
+    M = 2 * n
+    group = []
+    power = 1
+    for _ in range(n // 2):
+        group.append(power)
+        power = (power * 5) % M
+    return group
+
+
+def fft_special(vals: np.ndarray, n: int) -> np.ndarray:
+    """Forward special FFT matching OpenFHE's canonical embedding.
+
+    fft_special evaluates a polynomial at the same N roots as the
+    standard canonical_embedding (the odd powers of zeta_{2N}), just
+    indexed via the rotation group rather than in consecutive odd order.
+    So it's canonical_embedding + a gather by rot[].
+
+    Input: N/2 complex values packing N real polynomial coefficients as
+    coeffs[:N/2] + 1j * coeffs[N/2:]. Returns N/2 slot values.
+    """
+    # Unpack to N real polynomial coefficients, then evaluate at all N
+    # odd-powered roots in standard order (zeta^1, zeta^3, ..., zeta^{2N-1}).
+    coeffs = np.concatenate([np.real(vals), np.imag(vals)])
+    std_emb = canonical_embedding(Polynomial(coeffs, n))
+
+    # Slot i corresponds to zeta^{rot[i]}, which is at standard index (rot[i]-1)/2.
+    rot = np.array(rotation_group(n))
+    return std_emb[(rot - 1) // 2]
+
+
+def fft_special_inv(vals: np.ndarray, n: int) -> np.ndarray:
+    """Inverse special FFT matching OpenFHE's inverse canonical embedding.
+
+    Inverse of fft_special: scatter slot values (and their conjugates)
+    into the N-element standard-ordered Hermitian vector, then reuse
+    the standard inverse_canonical_embedding.
+
+    Input: N/2 complex slot values. Returns N/2 complex values packing
+    N real coefficients as coeffs[:N/2] + 1j * coeffs[N/2:].
+    """
+    rot = np.array(rotation_group(n))
+
+    # Build the length-N Hermitian vector in standard order. Slot i
+    # (root zeta^{rot[i]}) sits at standard index (rot[i]-1)/2; its
+    # conjugate (root zeta^{M-rot[i]}) sits at (M-rot[i]-1)/2.
+    std_values = np.zeros(n, dtype=complex)
+    std_values[(rot - 1) // 2] = vals
+    std_values[(2 * n - rot - 1) // 2] = np.conj(vals)
+
+    real_coeffs = np.real(inverse_canonical_embedding(std_values).coefficients)
+    num_slots = n // 2
+    return real_coeffs[:num_slots] + 1j * real_coeffs[num_slots:]
