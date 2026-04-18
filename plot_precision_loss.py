@@ -11,6 +11,7 @@ The theoretical RMS precision error is: sqrt(N / 12) / scale = sqrt(N) / (2 * sq
 For a scaling factor of 2^k and modulus degree N, the bound is sqrt(N/3) * 2^(-k).
 """
 
+import math
 import numpy as np
 import matplotlib.pyplot as plt
 from encoding import encode, decode, EncodingParams
@@ -155,6 +156,133 @@ def main():
     plt.tight_layout()
     plt.savefig("precision_loss_vs_scale.png", dpi=300, bbox_inches="tight")
     print("Plot saved to precision_loss_vs_scale.png")
+    plt.show()
+
+    # Precision loss vs N for fixed scale
+    fixed_scale = 2.0**40
+    N_values = [2**i for i in range(5, 16)]  # 32, 64, 128, ..., 32768
+    num_trials_N = 1000
+    log_scale = int(math.log2(fixed_scale))
+
+    print(f"\n\nTesting with fixed scale = 2^{log_scale}, trials = {num_trials_N}")
+    print("\nN\tNum Slots\tMean Loss\tStd Dev\t\tTheoretical")
+    print("-" * 80)
+
+    all_losses_by_N = []
+    theoretical_losses_by_N = []
+
+    for N_test in N_values:
+        num_slots_test = N_test // 2
+
+        # Run multiple trials
+        losses_for_this_N = []
+        for _ in range(num_trials_N):
+            message = np.random.randn(num_slots_test) + 1j * np.random.randn(
+                num_slots_test
+            )
+            message = message * 100
+            loss = measure_precision_loss(message, fixed_scale, N_test)
+            losses_for_this_N.append(loss)
+
+        all_losses_by_N.append(losses_for_this_N)
+        theoretical = np.sqrt(N_test / 12) / fixed_scale
+        theoretical_losses_by_N.append(theoretical)
+
+        mean_loss = np.mean(losses_for_this_N)
+        std_loss = np.std(losses_for_this_N)
+        print(
+            f"{N_test}\t{num_slots_test}\t\t{mean_loss:.2e}\t{std_loss:.2e}\t{theoretical:.2e}"
+        )
+
+    mean_losses_by_N = [np.mean(losses) for losses in all_losses_by_N]
+
+    # Create new figure for N variation plot
+    _, (ax3, ax4) = plt.subplots(2, 1, figsize=(12, 12))
+
+    # First plot: Absolute precision loss vs N
+    for N_test, losses in zip(N_values, all_losses_by_N):
+        ax3.scatter([N_test] * len(losses), losses, alpha=0.3, s=10, color="green")
+
+    # Plot mean values
+    ax3.loglog(
+        N_values,
+        mean_losses_by_N,
+        "o-",
+        label="Mean Measured Loss",
+        linewidth=2,
+        markersize=6,
+        color="darkgreen",
+    )
+
+    # Plot theoretical bound
+    ax3.loglog(
+        N_values,
+        theoretical_losses_by_N,
+        "--",
+        label=f"Theoretical Bound (√(N/12) / 2^{log_scale})",
+        linewidth=2,
+        alpha=0.7,
+        color="red",
+    )
+
+    ax3.set_xlabel("Polynomial Modulus Degree (N)", fontsize=12)
+    ax3.set_ylabel("Precision Loss (RMS Error)", fontsize=12)
+    ax3.set_title(
+        f"CKKS Encoding Precision Loss vs N (Scale=2^{log_scale}, {num_trials_N} trials per N)",
+        fontsize=14,
+    )
+    ax3.grid(True, which="both", ls="-", alpha=0.2)
+    ax3.legend(fontsize=11)
+
+    # Second plot: Relative error
+    for N_test, losses, theoretical in zip(
+        N_values, all_losses_by_N, theoretical_losses_by_N
+    ):
+        relative_errors = [(loss - theoretical) / theoretical for loss in losses]
+        ax4.scatter(
+            [N_test] * len(relative_errors),
+            relative_errors,
+            alpha=0.3,
+            s=10,
+            color="orange",
+        )
+
+    # Plot mean relative error
+    mean_relative_errors_N = [
+        (mean - theo) / theo
+        for mean, theo in zip(mean_losses_by_N, theoretical_losses_by_N)
+    ]
+    ax4.semilogx(
+        N_values,
+        mean_relative_errors_N,
+        "o-",
+        color="darkorange",
+        label="Mean Relative Error",
+        linewidth=2,
+        markersize=6,
+    )
+
+    # Add a horizontal line at 0
+    ax4.axhline(
+        y=0,
+        color="black",
+        linestyle="--",
+        linewidth=1,
+        alpha=0.5,
+        label="Perfect Match",
+    )
+
+    ax4.set_xlabel("Polynomial Modulus Degree (N)", fontsize=12)
+    ax4.set_ylabel(
+        "Relative Error: (Measured - Theoretical) / Theoretical", fontsize=12
+    )
+    ax4.set_title("Relative Deviation from Theoretical Bound", fontsize=14)
+    ax4.grid(True, which="both", ls="-", alpha=0.2)
+    ax4.legend(fontsize=11)
+
+    plt.tight_layout()
+    plt.savefig("precision_loss_vs_N.png", dpi=300, bbox_inches="tight")
+    print("\nPlot saved to precision_loss_vs_N.png")
     plt.show()
 
 
