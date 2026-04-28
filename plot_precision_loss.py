@@ -71,12 +71,14 @@ def main():
     _, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 12))
 
     # First plot: Absolute precision loss compared to theoretical loss
+    ax1.set_xscale("log", base=2)
+    ax1.set_yscale("log", base=2)
     # Plot all individual measurements as scatter points
     for scale, losses in zip(scaling_factors, all_precision_losses):
         ax1.scatter([scale] * len(losses), losses, alpha=0.3, s=10, color="blue")
 
     # Plot mean values
-    ax1.loglog(
+    ax1.plot(
         scaling_factors,
         mean_precision_losses,
         "o-",
@@ -87,7 +89,7 @@ def main():
     )
 
     # Plot theoretical bound
-    ax1.loglog(
+    ax1.plot(
         scaling_factors,
         theoretical_losses,
         "--",
@@ -107,6 +109,7 @@ def main():
     ax1.legend(fontsize=11)
 
     # Second plot: Relative error (normalized by theoretical)
+    ax2.set_xscale("log", base=2)
     # Calculate relative errors for each trial
     for scale, losses, theoretical in zip(
         scaling_factors, all_precision_losses, theoretical_losses
@@ -125,7 +128,7 @@ def main():
         (mean - theo) / theo
         for mean, theo in zip(mean_precision_losses, theoretical_losses)
     ]
-    ax2.semilogx(
+    ax2.plot(
         scaling_factors,
         mean_relative_errors,
         "o-",
@@ -200,11 +203,13 @@ def main():
     _, (ax3, ax4) = plt.subplots(2, 1, figsize=(12, 12))
 
     # First plot: Absolute precision loss vs N
+    ax3.set_xscale("log", base=2)
+    ax3.set_yscale("log", base=2)
     for N_test, losses in zip(N_values, all_losses_by_N):
         ax3.scatter([N_test] * len(losses), losses, alpha=0.3, s=10, color="green")
 
     # Plot mean values
-    ax3.loglog(
+    ax3.plot(
         N_values,
         mean_losses_by_N,
         "o-",
@@ -215,7 +220,7 @@ def main():
     )
 
     # Plot theoretical bound
-    ax3.loglog(
+    ax3.plot(
         N_values,
         theoretical_losses_by_N,
         "--",
@@ -235,6 +240,7 @@ def main():
     ax3.legend(fontsize=11)
 
     # Second plot: Relative error
+    ax4.set_xscale("log", base=2)
     for N_test, losses, theoretical in zip(
         N_values, all_losses_by_N, theoretical_losses_by_N
     ):
@@ -252,7 +258,7 @@ def main():
         (mean - theo) / theo
         for mean, theo in zip(mean_losses_by_N, theoretical_losses_by_N)
     ]
-    ax4.semilogx(
+    ax4.plot(
         N_values,
         mean_relative_errors_N,
         "o-",
