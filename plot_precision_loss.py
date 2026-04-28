@@ -162,6 +162,8 @@ def main():
     plt.show()
 
     # Precision loss vs N for fixed scale
+    # set to 2**20 to show the noise from FFT go away as mentioned in the
+    # article.
     fixed_scale = 2.0**40
     N_values = [2**i for i in range(5, 16)]  # 32, 64, 128, ..., 32768
     num_trials_N = 1000
