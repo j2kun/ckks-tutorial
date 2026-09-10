@@ -1,60 +1,140 @@
-import numpy as np
 from typing import Iterable
+
+import numpy as np
 
 
 def is_power_of_two(x: int) -> bool:
     return (x != 0) and (x & (x - 1) == 0)
 
 
-class Polynomial:
-    """A class representing a univariate polynomial with a ring modulus x^N + 1."""
+class IntPolynomial:
+    """An integer polynomial with a ring modulus x^N + 1."""
 
-    def __init__(self, coefficients: np.ndarray | Iterable[float], modulus_degree: int):
+    def __init__(
+        self,
+        coefficients: np.ndarray | Iterable[float],
+        modulus_degree: int,
+    ):
         """Construct a polynomial.
 
         Args:
             coefficients: the coefficients of the polynomial.
             modulus_degree: the degree N of x^N + 1. Must be a power of two.
         """
-        self.coefficients = np.array(coefficients)
+        self.coefficients = np.array(coefficients, dtype=np.int64)
         self.modulus_degree = (
             modulus_degree if modulus_degree is not None else len(coefficients)
         )
 
         if self.modulus_degree != self.coefficients.shape[0]:
             raise ValueError(
-                f"twoNodulus degree {self.modulus_degree} must be at least "
+                f"Modulus degree {self.modulus_degree} must be exactly "
                 f"the number of coefficients {self.coefficients.shape[0]}."
             )
         if not is_power_of_two(self.modulus_degree):
             raise ValueError(
-                "twoNodulus degree must be a power of two, but was "
+                "Modulus degree must be a power of two, but was "
                 f"{self.modulus_degree}."
             )
 
     def __repr__(self):
-        return f"Polynomial({self.coefficients.tolist()})"
+        return f"IntPolynomial({self.coefficients.tolist()})"
 
     def __eq__(self, other) -> bool:
-        # Equality is nontrivial with modular polynomials, but for now we can
-        # compare coefficients exactly.
-        if not isinstance(other, Polynomial):
+        if not isinstance(other, IntPolynomial):
             return False
         return self.modulus_degree == other.modulus_degree and np.array_equal(
             self.coefficients, other.coefficients
         )
 
-    def assert_close(self, other, rtol=1e-5, atol=1e-8):
-        if not isinstance(other, Polynomial):
-            raise AssertionError(f"Other object is not a Polynomial: {other}")
+    def _assert_compatible(self, other):
         if self.modulus_degree != other.modulus_degree:
-            raise AssertionError(
-                f"Modulus degrees differ: {self.modulus_degree} vs "
-                f"{other.modulus_degree}"
+            raise ValueError(
+                "Cannot compute two polynomials with differing "
+                f"mod degrees {self.modulus_degree} and {other.modulus_degree}"
             )
+
+
+class ModQPolynomial:
+    """A polynomial with a ring modulus x^N + 1 and coeff modulus Q."""
+
+    def __init__(
+        self,
+        coefficients: np.ndarray | Iterable[float],
+        modulus_degree: int,
+        coefficient_modulus: int,
+    ):
+        """Construct a polynomial.
+
+        Args:
+            coefficients: the coefficients of the polynomial.
+            modulus_degree: the degree N of x^N + 1. Must be a power of two.
+            coefficient_modulus: the modulus Q of the coefficient ring.
+        """
+        if coefficient_modulus is None:
+            raise ValueError("coefficient_modulus is mandatory for ModQPolynomial.")
+
+        self.coefficients = np.array(coefficients, dtype=np.int64)
+        self.modulus_degree = (
+            modulus_degree if modulus_degree is not None else len(coefficients)
+        )
+        self.coefficient_modulus = coefficient_modulus
+
+        if self.modulus_degree != self.coefficients.shape[0]:
+            raise ValueError(
+                f"Modulus degree {self.modulus_degree} must be exactly "
+                f"the number of coefficients {self.coefficients.shape[0]}."
+            )
+        if not is_power_of_two(self.modulus_degree):
+            raise ValueError(
+                "Modulus degree must be a power of two, but was "
+                f"{self.modulus_degree}."
+            )
+        self.reduce()
+
+    def reduce(self):
+        self.coefficients = self.coefficients % self.coefficient_modulus
+
+    def lift_to_signed_representative(self) -> IntPolynomial:
+        coeffs = np.where(
+            self.coefficients >= self.coefficient_modulus / 2.0,
+            self.coefficients - self.coefficient_modulus,
+            self.coefficients,
+        )
+        return IntPolynomial(coeffs, self.modulus_degree)
+
+    def __repr__(self):
+        return f"ModQPolynomial({self.coefficients.tolist()})"
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, ModQPolynomial):
+            return False
+        return (
+            self.modulus_degree == other.modulus_degree
+            and self.coefficient_modulus == other.coefficient_modulus
+            and np.array_equal(self.coefficients, other.coefficients)
+        )
+
+    def assert_close(self, other, rtol=1e-5, atol=1e-8):
+        if not hasattr(other, "coefficients"):
+            raise AssertionError(f"Other object is not a polynomial-like: {other}")
         np.testing.assert_allclose(
             self.coefficients, other.coefficients, rtol=rtol, atol=atol
         )
+
+    def _assert_compatible(self, other):
+        if self.modulus_degree != other.modulus_degree:
+            raise ValueError(
+                "Cannot compute two polynomials with differing "
+                f"mod degrees {self.modulus_degree} and {other.modulus_degree}"
+            )
+        if isinstance(other, ModQPolynomial):
+            if self.coefficient_modulus != other.coefficient_modulus:
+                raise ValueError(
+                    "Cannot compute two polynomials with differing "
+                    f"mod degrees {self.coefficient_modulus} and "
+                    f"{other.coefficient_modulus}"
+                )
 
 
 def vandermonde_matrix(n: int) -> np.ndarray:
@@ -74,17 +154,19 @@ def vandermonde_matrix(n: int) -> np.ndarray:
 
 # For correctness testing, compare the FFT method to a more straightforward
 # Vandermonde matrix method.
-def canonical_embedding_vandermonde(poly: Polynomial) -> np.ndarray:
+def canonical_embedding_vandermonde(poly_coeffs: np.ndarray) -> np.ndarray:
     """Computes the canonical embedding of a polynomial.
 
     This evaluates the polynomial at primitive complex roots of unity,
     using a Vandermonde matrix method.
     """
-    vandermonde = vandermonde_matrix(poly.modulus_degree)
+    n = len(poly_coeffs)
+    vandermonde = vandermonde_matrix(n)
     # Vandermonde matrix turns evaluation into a matrix-vector mul
-    return vandermonde @ poly.coefficients
+    return vandermonde @ poly_coeffs
 
-def inverse_canonical_embedding_vandermonde(values: np.ndarray) -> Polynomial:
+
+def inverse_canonical_embedding_vandermonde(values: np.ndarray) -> np.ndarray:
     """Computes the inverse canonical embedding of a polynomial.
 
     The input `values` must be N complex values representing the evaluation of
@@ -95,17 +177,16 @@ def inverse_canonical_embedding_vandermonde(values: np.ndarray) -> Polynomial:
     n = len(values)
     vandermonde = vandermonde_matrix(n)
     inv_vand = np.linalg.inv(vandermonde)
-    return Polynomial(inv_vand @ values, n)
+    return inv_vand @ values
 
 
-def canonical_embedding(poly: Polynomial) -> np.ndarray:
+def canonical_embedding(poly_coeffs: np.ndarray) -> np.ndarray:
     """Computes the canonical embedding of a polynomial.
 
     This evaluates the polynomial at primitive complex roots of unity,
     using an FFT-based method.
     """
-    poly_coeffs = poly.coefficients
-    N = poly.modulus_degree
+    N = len(poly_coeffs)
 
     # 2N-point FFT evaluates at all 2N-th roots: omega^0, omega^1, ...,
     # omega^{2N-1}. But return only the odd entries for the primitive roots.
@@ -114,7 +195,7 @@ def canonical_embedding(poly: Polynomial) -> np.ndarray:
     return fft_result[np.arange(1, 2 * N, 2)]
 
 
-def inverse_canonical_embedding(values: np.ndarray) -> Polynomial:
+def inverse_canonical_embedding(values: np.ndarray) -> np.ndarray:
     """
     Invert the canonical embedding using FFT.
 
@@ -134,4 +215,4 @@ def inverse_canonical_embedding(values: np.ndarray) -> Polynomial:
     zeta = np.exp(2j * np.pi / M)
     phase_factors = zeta ** (-np.arange(N))
     coeffs = (phase_factors * ifft_result) / N
-    return Polynomial(coeffs, modulus_degree=N)
+    return coeffs

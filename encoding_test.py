@@ -21,18 +21,30 @@ from encoding import encode, EncodingParams, decode
 #     expected = np.array([2355, 1195, 1485, 2933], dtype=np.int64)
 #     np.testing.assert_equal(plaintext.coefficients, expected)
 
+MODULUS = 2147473409
+
 
 def test_encode():
     message = np.array([1, 2])
-    params = EncodingParams(scale=1024, poly_modulus_degree=4)
+    params = EncodingParams(
+        scale=1024,
+        poly_modulus_degree=4,
+        coefficient_modulus=MODULUS,
+    )
     plaintext = encode(message, params)
     expected = np.array([1536, -362, 0, 362], dtype=np.int64)
-    np.testing.assert_equal(plaintext.coefficients, expected)
+    np.testing.assert_equal(
+        plaintext.lift_to_signed_representative().coefficients, expected
+    )
 
 
 def test_encode_decode_exact():
     message = np.array([3 + 4j, 2 - 1j, 1 + 0j, 0 + 2j])
-    params = EncodingParams(scale=2**20, poly_modulus_degree=8)
+    params = EncodingParams(
+        scale=2**20,
+        poly_modulus_degree=8,
+        coefficient_modulus=MODULUS,
+    )
     plaintext = encode(message, params)
     decoded_message = decode(plaintext, params)
     np.testing.assert_allclose(decoded_message, message, atol=1e-06)
@@ -49,7 +61,11 @@ def test_encode_decode_approx_equality(message):
     # encode + decode inherently loses precision due to the rounding step
     # of encoding. The amount of precision lost is decreased as the scale
     # is increased.
-    params = EncodingParams(scale=2**40, poly_modulus_degree=32)
+    params = EncodingParams(
+        scale=2**40,
+        poly_modulus_degree=32,
+        coefficient_modulus=2**60 - 1,
+    )
     encoded = encode(message, params)
     decoded = decode(encoded, params)
-    np.testing.assert_allclose(message, decoded, rtol=0, atol=1e-06)
+    np.testing.assert_allclose(decoded, message, rtol=0, atol=1e-06)
