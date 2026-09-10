@@ -3,3 +3,4 @@ matplotlib>=3.9.0
 numpy>=2.4.0
 pytest>=9.0.2
 pre-commit
+galois>=0.4.11

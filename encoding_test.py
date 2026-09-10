@@ -3,7 +3,8 @@ import hypothesis.strategies as st
 import numpy as np
 
 from encoding import encode, decode
-from params import EncodingParams
+from params import EncodingParams, NTTParams
+from ntt import NTT_32_BIT_PRIME, NTT_64_BIT_PRIME
 
 
 # Example D-3.1.1 from
@@ -30,7 +31,7 @@ def test_encode():
     params = EncodingParams(
         scale=1024,
         poly_modulus_degree=4,
-        coefficient_modulus=MODULUS,
+        coefficient_modulus=NTT_32_BIT_PRIME,
     )
     plaintext = encode(message, params)
     expected = np.array([1536, -362, 0, 362], dtype=np.int64)
@@ -44,7 +45,7 @@ def test_encode_decode_exact():
     params = EncodingParams(
         scale=2**20,
         poly_modulus_degree=8,
-        coefficient_modulus=MODULUS,
+        coefficient_modulus=NTT_32_BIT_PRIME,
     )
     plaintext = encode(message, params)
     decoded_message = decode(plaintext, params)
@@ -65,7 +66,7 @@ def test_encode_decode_approx_equality(message):
     params = EncodingParams(
         scale=2**40,
         poly_modulus_degree=32,
-        coefficient_modulus=2**60 - 1,
+        coefficient_modulus=NTT_64_BIT_PRIME,
     )
     encoded = encode(message, params)
     decoded = decode(encoded, params)
