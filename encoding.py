@@ -1,16 +1,9 @@
-from dataclasses import dataclass
 import numpy as np
 
 from polynomial import canonical_embedding
 from polynomial import inverse_canonical_embedding
 from ckks_types import Cleartext, Plaintext
-
-
-@dataclass(frozen=True)
-class EncodingParams:
-    scale: float
-    poly_modulus_degree: int
-    coefficient_modulus: int
+from params import EncodingParams
 
 
 def encode(message: Cleartext, params: EncodingParams) -> Plaintext:

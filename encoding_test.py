@@ -2,7 +2,8 @@ from hypothesis import given
 import hypothesis.strategies as st
 import numpy as np
 
-from encoding import encode, EncodingParams, decode
+from encoding import encode, decode
+from params import EncodingParams
 
 
 # Example D-3.1.1 from
