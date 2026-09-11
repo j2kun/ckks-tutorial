@@ -34,3 +34,19 @@ class Ciphertext:
     """
 
     data: Tuple[ModQPolynomial, ModQPolynomial]
+
+
+@dataclass(frozen=True)
+class PublicKey:
+    """A CKKS Public Key.
+
+    Mathematically represented as an RLWE pair (b, a) in R_Q^2 generated from
+    a secret key s:
+
+    Attributes:
+        data: A tuple (b, a) where:
+            b: The public bias polynomial [-(a * s) + e]_Q.
+            a: A uniformly random sample polynomial from R_Q.
+    """
+
+    data: Tuple[ModQPolynomial, ModQPolynomial]
