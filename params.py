@@ -9,6 +9,7 @@ import ntt
 @dataclass
 class NTTParams:
     """NTT parameters and pre-computed twiddle factors."""
+
     degree: int
     modulus: int
     precomputed: ntt.PrecomputedNTT = field(init=False)
@@ -19,6 +20,16 @@ class NTTParams:
 
 @dataclass(frozen=True)
 class EncodingParams:
+    """Parameters needed for plaintext encoding."""
+
     scale: float
     poly_modulus_degree: int
     coefficient_modulus: int
+
+
+@dataclass(frozen=True)
+class EncryptionParams:
+    """Parameters needed for encryption and key generation."""
+
+    degree: int
+    modulus: int
