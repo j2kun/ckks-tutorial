@@ -23,8 +23,6 @@ from ntt import NTT_32_BIT_PRIME, NTT_64_BIT_PRIME
 #     expected = np.array([2355, 1195, 1485, 2933], dtype=np.int64)
 #     np.testing.assert_equal(plaintext.coefficients, expected)
 
-MODULUS = 2147473409
-
 
 def test_encode():
     message = np.array([1, 2])
@@ -33,7 +31,11 @@ def test_encode():
         poly_modulus_degree=4,
         coefficient_modulus=NTT_32_BIT_PRIME,
     )
-    plaintext = encode(message, params)
+    ntt_params = NTTParams(
+        degree=params.poly_modulus_degree,
+        modulus=params.coefficient_modulus,
+    )
+    plaintext = encode(message, params, ntt_params)
     expected = np.array([1536, -362, 0, 362], dtype=np.int64)
     np.testing.assert_equal(
         plaintext.lift_to_signed_representative().coefficients, expected
@@ -47,7 +49,11 @@ def test_encode_decode_exact():
         poly_modulus_degree=8,
         coefficient_modulus=NTT_32_BIT_PRIME,
     )
-    plaintext = encode(message, params)
+    ntt_params = NTTParams(
+        degree=params.poly_modulus_degree,
+        modulus=params.coefficient_modulus,
+    )
+    plaintext = encode(message, params, ntt_params)
     decoded_message = decode(plaintext, params)
     np.testing.assert_allclose(decoded_message, message, atol=1e-06)
 
@@ -68,6 +74,10 @@ def test_encode_decode_approx_equality(message):
         poly_modulus_degree=32,
         coefficient_modulus=NTT_64_BIT_PRIME,
     )
-    encoded = encode(message, params)
+    ntt_params = NTTParams(
+        degree=params.poly_modulus_degree,
+        modulus=params.coefficient_modulus,
+    )
+    encoded = encode(message, params, ntt_params)
     decoded = decode(encoded, params)
     np.testing.assert_allclose(decoded, message, rtol=0, atol=1e-06)

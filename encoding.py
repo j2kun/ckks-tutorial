@@ -3,10 +3,12 @@ import numpy as np
 from polynomial import canonical_embedding
 from polynomial import inverse_canonical_embedding
 from ckks_types import Cleartext, Plaintext
-from params import EncodingParams
+from params import EncodingParams, NTTParams
 
 
-def encode(message: Cleartext, params: EncodingParams) -> Plaintext:
+def encode(
+    message: Cleartext, params: EncodingParams, ntt_params: NTTParams
+) -> Plaintext:
     """Encode a vector of complex numbers into a plaintext polynomial.
 
     First converts the message to its Hermitian form, then computes
@@ -33,7 +35,10 @@ def encode(message: Cleartext, params: EncodingParams) -> Plaintext:
     polynomial = inverse_canonical_embedding(hermitian_msg)
     rounded_scaled_coeffs = np.round(np.real(polynomial) * params.scale)
     return Plaintext(
-        rounded_scaled_coeffs, params.poly_modulus_degree, params.coefficient_modulus
+        rounded_scaled_coeffs,
+        params.poly_modulus_degree,
+        params.coefficient_modulus,
+        ntt_params,
     )
 
 
