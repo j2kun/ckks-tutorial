@@ -201,6 +201,7 @@ def test_encrypt_decrypt_asymmetric():
 
     np.testing.assert_allclose(decoded, message, rtol=0, atol=0.2)
 
+
 def test_encrypt_decrypt_asymmetric_64_bit_overflow():
     message = [(1 + 0j), (1 + 0j), (1 + 0j), (1 + 0j)]
     scale = 1048576.0

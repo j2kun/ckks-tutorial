@@ -6,7 +6,6 @@ from encoding import encode, decode
 from params import EncodingParams, NTTParams
 from ntt import NTT_32_BIT_PRIME, NTT_64_BIT_PRIME
 
-
 # Example D-3.1.1 from
 # https://fhetextbook.github.io/EncodingandDecoding.html#encoding-and-decoding
 #

@@ -20,7 +20,9 @@ def test_ntt_multiplication_simple():
     p2 = np.array([5, 4, 0, 0, 0, 0, 0, 0], dtype=np.int64)
 
     # expected: (x^2 + 2x + 3)(4x+5) = 4x^3 + 13x^2 + 22x + 15
-    prod = negacyclic_polymul_ntt(p1, p2, NTT_32_BIT_PRIME, NTTParams(8, NTT_32_BIT_PRIME).precomputed)
+    prod = negacyclic_polymul_ntt(
+        p1, p2, NTT_32_BIT_PRIME, NTTParams(8, NTT_32_BIT_PRIME).precomputed
+    )
     expected = np.array([15, 22, 13, 4, 0, 0, 0, 0], dtype=np.int64)
     np.testing.assert_array_equal(prod, expected)
 
@@ -29,7 +31,9 @@ def test_ntt_multiplication_negacyclic_wrap():
     # x^7 * x = x^8 = -1 mod X^8 + 1
     p1 = np.array([0, 0, 0, 0, 0, 0, 0, 1], dtype=np.int64)
     p2 = np.array([0, 1, 0, 0, 0, 0, 0, 0], dtype=np.int64)
-    prod = negacyclic_polymul_ntt(p1, p2, NTT_32_BIT_PRIME, NTTParams(8, NTT_32_BIT_PRIME).precomputed)
+    prod = negacyclic_polymul_ntt(
+        p1, p2, NTT_32_BIT_PRIME, NTTParams(8, NTT_32_BIT_PRIME).precomputed
+    )
     # -1 mod NTT_32_BIT_PRIME is NTT_32_BIT_PRIME - 1
     expected = np.array([NTT_32_BIT_PRIME - 1, 0, 0, 0, 0, 0, 0, 0], dtype=np.int64)
     np.testing.assert_array_equal(prod, expected)
