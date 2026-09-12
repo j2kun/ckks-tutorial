@@ -4,7 +4,6 @@ import functools
 import numpy as np
 import galois
 
-
 NTT_32_BIT_PRIME = 0x7FFFD801
 NTT_64_BIT_PRIME = 0x1FFFFFFFFFE00001
 
