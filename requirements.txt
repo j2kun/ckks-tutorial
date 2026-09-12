@@ -2,5 +2,6 @@ hypothesis>=6.148.8
 matplotlib>=3.9.0
 numpy>=2.4.0
 pytest>=9.0.2
+pytest-mypy
 pre-commit
 galois>=0.4.11

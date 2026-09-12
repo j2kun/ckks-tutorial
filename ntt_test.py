@@ -41,7 +41,7 @@ def test_ntt_multiplication_negacyclic_wrap():
 
 # The reference implementation below is from
 # https://www.jeremykun.com/2022/12/09/negacyclic-polynomial-multiplication/
-def cylic_matrix(c: np.array) -> np.ndarray:
+def cylic_matrix(c: np.ndarray) -> np.ndarray:
     """Generates a cyclic matrix with each row of the input shifted.
 
     For input: [1, 2, 3], generates the following matrix:

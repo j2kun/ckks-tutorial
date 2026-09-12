@@ -5,7 +5,7 @@ import numpy as np
 from context import CKKSContext
 from ntt import NTT_64_BIT_PRIME
 from params import EncodingParams
-from rng import TestRandomSource
+from rng import SeededRandomSource
 
 
 def test_symmetric_encrypt_decrypt():
@@ -18,7 +18,7 @@ def test_symmetric_encrypt_decrypt():
         coefficient_modulus=NTT_64_BIT_PRIME,
     )
     context = CKKSContext(encoding_params)
-    context.rng = TestRandomSource(seed)
+    context.rng = SeededRandomSource(seed)
 
     sk = context.generate_symmetric_private_key()
     pt = context.encode(message)
@@ -39,7 +39,7 @@ def test_asymmetric_encrypt_decrypt():
         coefficient_modulus=NTT_64_BIT_PRIME,
     )
     context = CKKSContext(encoding_params)
-    context.rng = TestRandomSource(seed)
+    context.rng = SeededRandomSource(seed)
 
     sk, pk = context.generate_asymmetric_keypair()
     pt = context.encode(message)

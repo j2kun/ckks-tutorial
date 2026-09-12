@@ -21,8 +21,15 @@ def measure_precision_loss(message: np.ndarray, scale: float, N: int) -> float:
     """
     Encode and decode a message with given scale and N, return the RMS error.
     """
-    params = EncodingParams(scale=scale, poly_modulus_degree=N)
-    encoded = encode(message, params)
+    from ntt import NTT_64_BIT_PRIME
+
+    params = EncodingParams(
+        scale=scale, poly_modulus_degree=N, coefficient_modulus=NTT_64_BIT_PRIME
+    )
+    from params import NTTParams
+
+    ntt_params = NTTParams(degree=N, modulus=NTT_64_BIT_PRIME)
+    encoded = encode(message, params, ntt_params)
     decoded = decode(encoded, params)
     error = np.sqrt(np.mean(np.abs(message - decoded[: len(message)]) ** 2))
     return error
