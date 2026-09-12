@@ -62,7 +62,7 @@ class ZeroNoiseRandomSource(SecureRandomSource):
         return np.zeros((degree,), dtype=np.int64)
 
 
-class TestRandomSource(SecureRandomSource):
+class SeededRandomSource(SecureRandomSource):
     """A random source that can be seeded, for testing."""
 
     def __init__(self, seed: int):

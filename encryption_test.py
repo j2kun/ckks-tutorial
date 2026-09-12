@@ -17,7 +17,7 @@ from encryption import (
 from key_gen import generate_symmetric_private_key, generate_asymmetric_keypair
 from params import EncryptionParams, EncodingParams, NTTParams
 from ntt import NTT_32_BIT_PRIME, NTT_64_BIT_PRIME
-from rng import TestRandomSource, ZeroNoiseRandomSource
+from rng import SeededRandomSource, ZeroNoiseRandomSource
 
 DEFAULT_ENCODING_PARAMS = EncodingParams(
     scale=2**20,
@@ -46,7 +46,7 @@ def test_encrypt_decrypt_hypothesis(message, scale, seed, modulus):
     )
     params = EncryptionParams(degree=degree, modulus=modulus)
     ntt_params = NTTParams(degree=params.degree, modulus=params.modulus)
-    random_source = TestRandomSource(seed)
+    random_source = SeededRandomSource(seed)
 
     sk = generate_symmetric_private_key(params, random_source)
     pt = encode(message, encoding_params, ntt_params)
@@ -90,7 +90,7 @@ def test_encrypt_decrypt():
         degree=DEFAULT_ENCODING_PARAMS.poly_modulus_degree, modulus=NTT_32_BIT_PRIME
     )
     ntt_params = NTTParams(degree=params.degree, modulus=params.modulus)
-    random_source = TestRandomSource(seed)
+    random_source = SeededRandomSource(seed)
 
     sk = generate_symmetric_private_key(params, random_source)
     pt = encode(message, DEFAULT_ENCODING_PARAMS, ntt_params)
@@ -115,7 +115,7 @@ def test_encrypt_decrypt_64_bit_overflow():
     )
     params = EncryptionParams(degree=degree, modulus=modulus)
     ntt_params = NTTParams(degree=params.degree, modulus=params.modulus)
-    random_source = TestRandomSource(seed)
+    random_source = SeededRandomSource(seed)
 
     sk = generate_symmetric_private_key(params, random_source)
     pt = encode(message, encoding_params, ntt_params)
@@ -145,7 +145,7 @@ def test_encrypt_decrypt_asymmetric_hypothesis(message, scale, seed, modulus):
     )
     params = EncryptionParams(degree=degree, modulus=modulus)
     ntt_params = NTTParams(degree=params.degree, modulus=modulus)
-    random_source = TestRandomSource(seed)
+    random_source = SeededRandomSource(seed)
 
     sk, pk = generate_asymmetric_keypair(params, random_source)
     pt = encode(message, encoding_params, ntt_params)
@@ -191,7 +191,7 @@ def test_encrypt_decrypt_asymmetric():
     degree = DEFAULT_ENCODING_PARAMS.poly_modulus_degree
     params = EncryptionParams(degree=degree, modulus=modulus)
     ntt_params = NTTParams(degree=degree, modulus=modulus)
-    random_source = TestRandomSource(seed)
+    random_source = SeededRandomSource(seed)
 
     sk, pk = generate_asymmetric_keypair(params, random_source)
     pt = encode(message, DEFAULT_ENCODING_PARAMS, ntt_params)
@@ -216,7 +216,7 @@ def test_encrypt_decrypt_asymmetric_64_bit_overflow():
     )
     params = EncryptionParams(degree=degree, modulus=modulus)
     ntt_params = NTTParams(degree=params.degree, modulus=params.modulus)
-    random_source = TestRandomSource(seed)
+    random_source = SeededRandomSource(seed)
 
     sk, pk = generate_asymmetric_keypair(params, random_source)
     pt = encode(message, encoding_params, ntt_params)
