@@ -1,25 +1,14 @@
-from dataclasses import dataclass
 import numpy as np
 
-from polynomial import Polynomial
 from polynomial import canonical_embedding
 from polynomial import inverse_canonical_embedding
-
-# A cleartext is a vector of possibly complex values
-Cleartext = np.ndarray
-
-# A plaintext is a polynomial (in coefficient form) in a ring
-# Z/QZ[x] / (x^N + 1) for some N (power of two) and Q.
-Plaintext = Polynomial
+from ckks_types import Cleartext, Plaintext
+from params import EncodingParams, NTTParams
 
 
-@dataclass(frozen=True)
-class EncodingParams:
-    scale: float
-    poly_modulus_degree: int
-
-
-def encode(message: Cleartext, params: EncodingParams) -> Plaintext:
+def encode(
+    message: Cleartext, params: EncodingParams, ntt_params: NTTParams
+) -> Plaintext:
     """Encode a vector of complex numbers into a plaintext polynomial.
 
     First converts the message to its Hermitian form, then computes
@@ -44,8 +33,13 @@ def encode(message: Cleartext, params: EncodingParams) -> Plaintext:
 
     # result of inverse canonical_embedding is guaranteed to be real-valued.
     polynomial = inverse_canonical_embedding(hermitian_msg)
-    rounded_scaled_coeffs = np.round(np.real(polynomial.coefficients) * params.scale)
-    return Polynomial(rounded_scaled_coeffs, params.poly_modulus_degree)
+    rounded_scaled_coeffs = np.round(np.real(polynomial) * params.scale)
+    return Plaintext(
+        rounded_scaled_coeffs,
+        params.poly_modulus_degree,
+        params.coefficient_modulus,
+        ntt_params,
+    )
 
 
 def decode(plaintext: Plaintext, params: EncodingParams) -> Cleartext:
@@ -54,9 +48,7 @@ def decode(plaintext: Plaintext, params: EncodingParams) -> Cleartext:
     Computes sigma(message / params.scale), where sigma is the canonical
     embedding, then extracts the first N/2 entries.
     """
-    scale_removed = Polynomial(
-        coefficients=plaintext.coefficients / params.scale,
-        modulus_degree=plaintext.modulus_degree,
-    )
-    unembedded = canonical_embedding(scale_removed)
+    centered_plaintext = plaintext.lift_to_signed_representative()
+    scale_removed_coeffs = centered_plaintext.coefficients / params.scale
+    unembedded = canonical_embedding(scale_removed_coeffs)
     return unembedded[: params.poly_modulus_degree // 2]
