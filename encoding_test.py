@@ -2,8 +2,9 @@ from hypothesis import given
 import hypothesis.strategies as st
 import numpy as np
 
-from encoding import encode, EncodingParams, decode
-
+from encoding import encode, decode
+from params import EncodingParams, NTTParams
+from ntt import NTT_32_BIT_PRIME, NTT_64_BIT_PRIME
 
 # Example D-3.1.1 from
 # https://fhetextbook.github.io/EncodingandDecoding.html#encoding-and-decoding
@@ -24,16 +25,34 @@ from encoding import encode, EncodingParams, decode
 
 def test_encode():
     message = np.array([1, 2])
-    params = EncodingParams(scale=1024, poly_modulus_degree=4)
-    plaintext = encode(message, params)
+    params = EncodingParams(
+        scale=1024,
+        poly_modulus_degree=4,
+        coefficient_modulus=NTT_32_BIT_PRIME,
+    )
+    ntt_params = NTTParams(
+        degree=params.poly_modulus_degree,
+        modulus=params.coefficient_modulus,
+    )
+    plaintext = encode(message, params, ntt_params)
     expected = np.array([1536, -362, 0, 362], dtype=np.int64)
-    np.testing.assert_equal(plaintext.coefficients, expected)
+    np.testing.assert_equal(
+        plaintext.lift_to_signed_representative().coefficients, expected
+    )
 
 
 def test_encode_decode_exact():
     message = np.array([3 + 4j, 2 - 1j, 1 + 0j, 0 + 2j])
-    params = EncodingParams(scale=2**20, poly_modulus_degree=8)
-    plaintext = encode(message, params)
+    params = EncodingParams(
+        scale=2**20,
+        poly_modulus_degree=8,
+        coefficient_modulus=NTT_32_BIT_PRIME,
+    )
+    ntt_params = NTTParams(
+        degree=params.poly_modulus_degree,
+        modulus=params.coefficient_modulus,
+    )
+    plaintext = encode(message, params, ntt_params)
     decoded_message = decode(plaintext, params)
     np.testing.assert_allclose(decoded_message, message, atol=1e-06)
 
@@ -49,7 +68,15 @@ def test_encode_decode_approx_equality(message):
     # encode + decode inherently loses precision due to the rounding step
     # of encoding. The amount of precision lost is decreased as the scale
     # is increased.
-    params = EncodingParams(scale=2**40, poly_modulus_degree=32)
-    encoded = encode(message, params)
+    params = EncodingParams(
+        scale=2**40,
+        poly_modulus_degree=32,
+        coefficient_modulus=NTT_64_BIT_PRIME,
+    )
+    ntt_params = NTTParams(
+        degree=params.poly_modulus_degree,
+        modulus=params.coefficient_modulus,
+    )
+    encoded = encode(message, params, ntt_params)
     decoded = decode(encoded, params)
-    np.testing.assert_allclose(message, decoded, rtol=0, atol=1e-06)
+    np.testing.assert_allclose(decoded, message, rtol=0, atol=1e-06)

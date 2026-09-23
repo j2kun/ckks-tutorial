@@ -3,7 +3,6 @@ import numpy as np
 from hypothesis import given
 import hypothesis.strategies as st
 
-from polynomial import Polynomial
 from polynomial import canonical_embedding
 from polynomial import canonical_embedding_vandermonde
 from polynomial import inverse_canonical_embedding
@@ -11,9 +10,7 @@ from polynomial import inverse_canonical_embedding_vandermonde
 
 
 def test_canonical_embedding():
-    polynomial = Polynomial(
-        [5 / 2, math.sqrt(2), 5 / 2, math.sqrt(2) / 2], modulus_degree=4
-    )
+    polynomial = np.array([5 / 2, math.sqrt(2), 5 / 2, math.sqrt(2) / 2])
     # This vector would be the message (3+4j, 2-1j), but here it has been
     # extended to include its complex conjugates.
     expected = (3 + 4j, 2 - 1j, 2 + 1j, 3 - 4j)
@@ -22,11 +19,9 @@ def test_canonical_embedding():
 
 def test_inverse_canonical_embedding():
     vector = np.array([3 + 4j, 2 - 1j, 2 + 1j, 3 - 4j])
-    expected = Polynomial(
-        [5 / 2, math.sqrt(2), 5 / 2, math.sqrt(2) / 2], modulus_degree=4
-    )
+    expected = np.array([5 / 2, math.sqrt(2), 5 / 2, math.sqrt(2) / 2])
     actual = inverse_canonical_embedding(vector)
-    actual.assert_close(expected)
+    np.testing.assert_allclose(actual, expected, rtol=1e-5, atol=1e-8)
 
 
 @given(
@@ -40,7 +35,7 @@ def test_canonical_embedding_equivalence(coeffs):
     # zero-extend coeffs to next power of two
     modulus_degree = 1 << (len(coeffs) - 1).bit_length()
     coeffs += [0] * (modulus_degree - len(coeffs))
-    poly = Polynomial(coeffs, modulus_degree=modulus_degree)
+    poly = np.array(coeffs)
 
     result_fft = canonical_embedding(poly)
     result_vandermonde = canonical_embedding_vandermonde(poly)
@@ -59,9 +54,10 @@ def test_inverse_canonical_embedding_equivalence(values):
     modulus_degree = 1 << (len(values) - 1).bit_length()
     values += [0] * (modulus_degree - len(values))
 
-    result_fft = inverse_canonical_embedding(values).coefficients
-    result_vandermonde = inverse_canonical_embedding_vandermonde(values).coefficients
+    result_fft = inverse_canonical_embedding(values)
+    result_vandermonde = inverse_canonical_embedding_vandermonde(values)
     np.testing.assert_allclose(result_fft, result_vandermonde, rtol=0, atol=1e-06)
+
 
 @given(
     coeffs=st.lists(
@@ -74,11 +70,11 @@ def test_embed_then_inverse(coeffs):
     # zero-extend coeffs to next power of two
     modulus_degree = 1 << (len(coeffs) - 1).bit_length()
     coeffs += [0] * (modulus_degree - len(coeffs))
-    poly = Polynomial(coeffs, modulus_degree=modulus_degree)
+    poly = np.array(coeffs)
 
     embedded = canonical_embedding(poly)
     recovered_poly = inverse_canonical_embedding(embedded)
-    recovered_poly.assert_close(poly, rtol=0, atol=1e-7)
+    np.testing.assert_allclose(recovered_poly, poly, rtol=0, atol=1e-7)
 
 
 @given(
