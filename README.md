@@ -1,11 +1,11 @@
-
 # CKKS tutorial
 
-A blog series building up CKKS from scratch
+A blog series building up CKKS from scratch.
 
 ## Table of contents
 
 1. [Polynomials, the Canonical Embedding, and Encoding](https://www.jeremykun.com/2026/04/29/ckks-polynomials-the-canonical-embedding-and-encoding/)
+1. [Encryption and Decryption](https://www.jeremykun.com//2026/09/23/ckks-encryption-and-decryption/)
 
 ## Additional resources :
 
