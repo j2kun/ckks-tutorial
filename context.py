@@ -2,7 +2,14 @@
 
 from typing import Tuple
 
-from ckks_types import Cleartext, Plaintext, Ciphertext, PublicKey, PrivateKey
+from ckks_types import (
+    Cleartext,
+    Plaintext,
+    Ciphertext,
+    Deg2Ciphertext,
+    PublicKey,
+    PrivateKey,
+)
 from encoding import encode, decode
 from encryption import (
     encrypt_symmetric,
@@ -14,6 +21,7 @@ from key_gen import generate_symmetric_private_key, generate_asymmetric_keypair
 from params import EncodingParams, EncryptionParams, NTTParams
 from rng import SecureRandomSource
 from addition import add
+from multiplication import mul
 
 
 class CKKSContext:
@@ -69,3 +77,6 @@ class CKKSContext:
 
     def add(self, ct1: Ciphertext, ct2: Ciphertext) -> Ciphertext:
         return add(ct1, ct2)
+
+    def mul_no_relin(self, ct1: Ciphertext, ct2: Ciphertext) -> Deg2Ciphertext:
+        return mul(ct1, ct2)
