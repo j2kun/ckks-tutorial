@@ -160,3 +160,65 @@ def test_mul_asymmetric_hypothesis(message1, message2, scale, seed):
     decoded_product = decode(decrypted_product, decoding_params)
 
     np.testing.assert_allclose(decoded_product, expected, rtol=0, atol=0.2)
+
+
+def test_mul_error_growth_formula_symmetric():
+    """Test that the error of a product of ciphertexts encrypting plaintexts
+    pt_c and pt_d with errors e_c and e_d matches the formula:
+
+        pt_c * e_d + e_c * pt_d + e_c * e_d
+    """
+    seed = 384765
+    message_c = np.array([1, 2, 3, 4], dtype=np.complex64)
+    message_d = np.array([2, 3, 1, 2], dtype=np.complex64)
+    context = CKKSContext(DEFAULT_ENCODING_PARAMS)
+    context.rng = SeededRandomSource(seed)
+
+    sk = context.generate_symmetric_private_key()
+
+    pt_c = context.encode(message_c)
+    ct_c = context.encrypt_symmetric(pt_c, sk)
+    e_c = context.decrypt_symmetric(ct_c, sk) - pt_c
+
+    pt_d = context.encode(message_d)
+    ct_d = context.encrypt_symmetric(pt_d, sk)
+    e_d = context.decrypt_symmetric(ct_d, sk) - pt_d
+
+    ct_product = context.mul_no_relin(ct_c, ct_d)
+
+    pt_product = pt_c * pt_d
+    e_product = decrypt_deg2(ct_product, sk) - pt_product
+
+    expected_error = pt_c * e_d + e_c * pt_d + e_c * e_d
+    np.testing.assert_allclose(
+        e_product.coefficients, expected_error.coefficients, rtol=0, atol=1e-10
+    )
+
+
+def test_mul_error_growth_formula_asymmetric():
+    """Test error formula for asymmetric mul."""
+    seed = 384765
+    message_c = np.array([1, 2, 3, 4], dtype=np.complex64)
+    message_d = np.array([2, 3, 1, 2], dtype=np.complex64)
+    context = CKKSContext(DEFAULT_ENCODING_PARAMS)
+    context.rng = SeededRandomSource(seed)
+
+    sk, pk = context.generate_asymmetric_keypair()
+
+    pt_c = context.encode(message_c)
+    ct_c = context.encrypt_asymmetric(pt_c, pk)
+    e_c = context.decrypt_symmetric(ct_c, sk) - pt_c
+
+    pt_d = context.encode(message_d)
+    ct_d = context.encrypt_asymmetric(pt_d, pk)
+    e_d = context.decrypt_symmetric(ct_d, sk) - pt_d
+
+    ct_product = context.mul_no_relin(ct_c, ct_d)
+
+    pt_product = pt_c * pt_d
+    e_product = decrypt_deg2(ct_product, sk) - pt_product
+
+    expected_error = pt_c * e_d + e_c * pt_d + e_c * e_d
+    np.testing.assert_allclose(
+        e_product.coefficients, expected_error.coefficients, rtol=0, atol=1e-10
+    )
