@@ -37,6 +37,13 @@ class Ciphertext:
 
 
 @dataclass(frozen=True)
+class Deg2Ciphertext:
+    """A CKKS Ciphertext after multiplication."""
+
+    data: Tuple[ModQPolynomial, ModQPolynomial, ModQPolynomial]
+
+
+@dataclass(frozen=True)
 class PublicKey:
     """A CKKS Public Key.
 

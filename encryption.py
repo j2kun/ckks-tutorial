@@ -1,4 +1,4 @@
-from ckks_types import Ciphertext, Plaintext, PrivateKey, PublicKey
+from ckks_types import Ciphertext, Deg2Ciphertext, Plaintext, PrivateKey, PublicKey
 from params import EncryptionParams
 from polynomial import ModQPolynomial, IntPolynomial
 import rng
@@ -72,3 +72,11 @@ def decrypt_asymmetric(
     params: EncryptionParams,
 ) -> Plaintext:
     return decrypt_symmetric(ciphertext, secret_key, params)
+
+
+def decrypt_deg2(
+    ciphertext: Deg2Ciphertext,
+    secret_key: PrivateKey,
+) -> Plaintext:
+    t0, t1, t2 = ciphertext.data
+    return t0 + t1 * secret_key + t2 * (secret_key * secret_key)
