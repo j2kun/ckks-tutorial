@@ -36,6 +36,9 @@ class Ciphertext:
     data: Tuple[ModQPolynomial, ModQPolynomial]
 
 
+PtOrCt = Plaintext | Ciphertext
+
+
 @dataclass(frozen=True)
 class Deg2Ciphertext:
     """A CKKS Ciphertext after multiplication."""

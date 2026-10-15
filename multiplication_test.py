@@ -70,6 +70,54 @@ def test_mul_two_asymmetric():
     np.testing.assert_allclose(decoded_product, expected, rtol=0, atol=0.2)
 
 
+def test_mul_plain_symmetric():
+    seed = 837465
+    message1 = np.array([1, 2, 3, 4], dtype=np.complex64)
+    message2 = np.array([2, 3, 1, 2], dtype=np.complex64)
+    expected = np.array([2, 6, 3, 8], dtype=np.complex64)
+    context = CKKSContext(DEFAULT_ENCODING_PARAMS)
+    context.rng = SeededRandomSource(seed)
+
+    sk = context.generate_symmetric_private_key()
+    pt1 = context.encode(message1)
+    ct1 = context.encrypt_symmetric(pt1, sk)
+    pt2 = context.encode(message2)
+
+    ct_product = context.mul_plain(ct1, pt2)
+    decrypted_product = context.decrypt_symmetric(ct_product, sk)
+    decoded_product = decode(decrypted_product, PRODUCT_ENCODING_PARAMS)
+    np.testing.assert_allclose(decoded_product, expected, rtol=0, atol=0.2)
+
+    ct_product = context.mul_plain(pt2, ct1)
+    decrypted_product = context.decrypt_symmetric(ct_product, sk)
+    decoded_product = decode(decrypted_product, PRODUCT_ENCODING_PARAMS)
+    np.testing.assert_allclose(decoded_product, expected, rtol=0, atol=0.2)
+
+
+def test_mul_plain_asymmetric():
+    seed = 837465
+    message1 = np.array([1, 2, 3, 4], dtype=np.complex64)
+    message2 = np.array([2, 3, 1, 2], dtype=np.complex64)
+    expected = np.array([2, 6, 3, 8], dtype=np.complex64)
+    context = CKKSContext(DEFAULT_ENCODING_PARAMS)
+    context.rng = SeededRandomSource(seed)
+
+    sk, pk = context.generate_asymmetric_keypair()
+    pt1 = context.encode(message1)
+    ct1 = context.encrypt_asymmetric(pt1, pk)
+    pt2 = context.encode(message2)
+
+    ct_product = context.mul_plain(ct1, pt2)
+    decrypted_product = context.decrypt_asymmetric(ct_product, sk)
+    decoded_product = decode(decrypted_product, PRODUCT_ENCODING_PARAMS)
+    np.testing.assert_allclose(decoded_product, expected, rtol=0, atol=0.2)
+
+    ct_product = context.mul_plain(pt2, ct1)
+    decrypted_product = context.decrypt_asymmetric(ct_product, sk)
+    decoded_product = decode(decrypted_product, PRODUCT_ENCODING_PARAMS)
+    np.testing.assert_allclose(decoded_product, expected, rtol=0, atol=0.2)
+
+
 @hypothesis.given(
     st.lists(
         st.complex_numbers(min_magnitude=1, max_magnitude=10),

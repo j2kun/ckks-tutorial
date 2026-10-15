@@ -6,6 +6,7 @@ from ckks_types import (
     Cleartext,
     Plaintext,
     Ciphertext,
+    PtOrCt,
     Deg2Ciphertext,
     PublicKey,
     PrivateKey,
@@ -21,7 +22,7 @@ from key_gen import generate_symmetric_private_key, generate_asymmetric_keypair
 from params import EncodingParams, EncryptionParams, NTTParams
 from rng import SecureRandomSource
 from addition import add
-from multiplication import mul
+from multiplication import mul, mul_plain
 
 
 class CKKSContext:
@@ -75,8 +76,11 @@ class CKKSContext:
     def generate_asymmetric_keypair(self) -> Tuple[PrivateKey, PublicKey]:
         return generate_asymmetric_keypair(self.encryption_params, self.rng)
 
-    def add(self, ct1: Ciphertext, ct2: Ciphertext) -> Ciphertext:
-        return add(ct1, ct2)
+    def add(self, v1: PtOrCt, v2: PtOrCt) -> Ciphertext:
+        return add(v1, v2)
 
     def mul_no_relin(self, ct1: Ciphertext, ct2: Ciphertext) -> Deg2Ciphertext:
         return mul(ct1, ct2)
+
+    def mul_plain(self, v1: PtOrCt, v2: PtOrCt) -> Ciphertext:
+        return mul_plain(v1, v2)
