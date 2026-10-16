@@ -60,3 +60,17 @@ class PublicKey:
     """
 
     data: Tuple[ModQPolynomial, ModQPolynomial]
+
+
+@dataclass(frozen=True)
+class KeySwitchingKey:
+    """A key switching key.
+
+    To switch a ciphertext from secret key s to secret key s', the
+    key-switching key is an encryption of s under s'.
+
+    Attributes:
+        data: A ciphertext encrypting s under s'.
+    """
+
+    data: Ciphertext

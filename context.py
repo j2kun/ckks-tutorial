@@ -10,6 +10,7 @@ from ckks_types import (
     Deg2Ciphertext,
     PublicKey,
     PrivateKey,
+    KeySwitchingKey,
 )
 from encoding import encode, decode
 from encryption import (
@@ -18,11 +19,17 @@ from encryption import (
     encrypt_asymmetric,
     decrypt_asymmetric,
 )
-from key_gen import generate_symmetric_private_key, generate_asymmetric_keypair
+from key_gen import (
+    generate_symmetric_private_key,
+    generate_asymmetric_keypair,
+    generate_asymmetric_key_switching_key,
+    generate_symmetric_key_switching_key,
+)
 from params import EncodingParams, EncryptionParams, NTTParams
 from rng import SecureRandomSource
 from addition import add
 from multiplication import mul, mul_plain
+from key_switch import key_switch
 
 
 class CKKSContext:
@@ -75,6 +82,30 @@ class CKKSContext:
 
     def generate_asymmetric_keypair(self) -> Tuple[PrivateKey, PublicKey]:
         return generate_asymmetric_keypair(self.encryption_params, self.rng)
+
+    def generate_symmetric_key_switching_key(
+        self, source_key: PrivateKey, target_key: PrivateKey
+    ) -> KeySwitchingKey:
+        return generate_symmetric_key_switching_key(
+            source_key,
+            target_key,
+            self.encryption_params,
+            self.ntt_params,
+            self.rng,
+        )
+
+    def generate_asymmetric_key_switching_key(
+        self,
+        source_key: PrivateKey,
+        target_key: PublicKey,
+    ) -> KeySwitchingKey:
+        return generate_asymmetric_key_switching_key(
+            source_key,
+            target_key,
+            self.encryption_params,
+            self.ntt_params,
+            self.rng,
+        )
 
     def add(self, v1: PtOrCt, v2: PtOrCt) -> Ciphertext:
         return add(v1, v2)
