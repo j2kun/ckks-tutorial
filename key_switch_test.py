@@ -1,13 +1,13 @@
 """Tests for key switching."""
 
 import numpy as np
+import pytest
 
 from context import CKKSContext
 from encoding import decode
-from encryption import extract_noise
 from key_switch import key_switch
 from ntt import NTT_64_BIT_PRIME
-from params import EncodingParams
+from params import EncodingParams, KeySwitchingKeyParams
 from rng import SeededRandomSource
 
 DEFAULT_ENCODING_PARAMS = EncodingParams(
@@ -17,7 +17,7 @@ DEFAULT_ENCODING_PARAMS = EncodingParams(
 )
 
 
-def test_key_switch_symmetric_noise_formula():
+def test_key_switch_symmetric():
     seed = 837465
     message = np.array([1, 2, 3, 4], dtype=np.complex64)
     context = CKKSContext(DEFAULT_ENCODING_PARAMS)
@@ -34,19 +34,38 @@ def test_key_switch_symmetric_noise_formula():
     decoded = decode(decrypted, DEFAULT_ENCODING_PARAMS)
 
     # Should get back the original message, since no computation was performed
-    # beyond key switching. However, due to the lack of a gadget decomposition,
-    # the noise has overwhelmed the message and it decrypts to garbage.
+    # beyond key switching.
+    np.testing.assert_allclose(decoded, message, rtol=0, atol=0.2)
 
-    # np.testing.assert_allclose(decoded, message, rtol=0, atol=0.2)
 
-    # For now, extract the exact noise formula, subtract it from the plaintext,
-    # and compare the remaining. This shows consistency of our impl with the
-    # algebra and noise model.
-    c1 = ct.data[1]
-    c1_eprime_term = c1 * extract_noise(
-        ksk.data, target_key, source_key.to_mod_q(context.ntt_params)
-    )
+@pytest.mark.parametrize("log_base", [1, 2, 4, 8])
+def test_key_switch_symmetric_various_bases(log_base):
+    seed = 9182
+    message = np.array([1.5, -2, 3j, 4], dtype=np.complex64)
+    context = CKKSContext(DEFAULT_ENCODING_PARAMS, KeySwitchingKeyParams(log_base))
+    context.rng = SeededRandomSource(seed)
 
-    ks_noise_removed = decrypted - c1_eprime_term
-    decoded = decode(ks_noise_removed, DEFAULT_ENCODING_PARAMS)
+    source_key = context.generate_symmetric_private_key()
+    target_key = context.generate_symmetric_private_key()
+    ct = context.encrypt_symmetric(context.encode(message), source_key)
+    ksk = context.generate_symmetric_key_switching_key(source_key, target_key)
+
+    switched_ct = key_switch(ct, ksk)
+    decoded = context.decode(context.decrypt_symmetric(switched_ct, target_key))
+    np.testing.assert_allclose(decoded, message, rtol=0, atol=0.2)
+
+
+def test_key_switch_asymmetric():
+    seed = 4321
+    message = np.array([1, 2, 3, 4], dtype=np.complex64)
+    context = CKKSContext(DEFAULT_ENCODING_PARAMS)
+    context.rng = SeededRandomSource(seed)
+
+    source_sk, source_pk = context.generate_asymmetric_keypair()
+    target_sk, target_pk = context.generate_asymmetric_keypair()
+    ct = context.encrypt_asymmetric(context.encode(message), source_pk)
+    ksk = context.generate_asymmetric_key_switching_key(source_sk, target_pk)
+
+    switched_ct = key_switch(ct, ksk)
+    decoded = context.decode(context.decrypt_asymmetric(switched_ct, target_sk))
     np.testing.assert_allclose(decoded, message, rtol=0, atol=0.2)

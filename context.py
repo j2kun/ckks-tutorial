@@ -25,7 +25,7 @@ from key_gen import (
     generate_asymmetric_key_switching_key,
     generate_symmetric_key_switching_key,
 )
-from params import EncodingParams, EncryptionParams, NTTParams
+from params import EncodingParams, EncryptionParams, KeySwitchingKeyParams, NTTParams
 from rng import SecureRandomSource
 from addition import add
 from multiplication import mul, mul_plain
@@ -34,8 +34,13 @@ from key_switch import key_switch
 
 class CKKSContext:
 
-    def __init__(self, params: EncodingParams):
+    def __init__(
+        self,
+        params: EncodingParams,
+        ks_params: KeySwitchingKeyParams = KeySwitchingKeyParams(log_base=4),
+    ):
         self.encoding_params = params
+        self.ks_params = ks_params
         self.ntt_params = NTTParams(
             degree=params.poly_modulus_degree,
             modulus=params.coefficient_modulus,
@@ -90,6 +95,7 @@ class CKKSContext:
             source_key,
             target_key,
             self.encryption_params,
+            self.ks_params,
             self.ntt_params,
             self.rng,
         )
@@ -103,6 +109,7 @@ class CKKSContext:
             source_key,
             target_key,
             self.encryption_params,
+            self.ks_params,
             self.ntt_params,
             self.rng,
         )
