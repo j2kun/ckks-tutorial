@@ -3,7 +3,10 @@ import pytest
 from hypothesis import given
 import hypothesis.strategies as st
 
-from decomposition import decompose, recompose
+from decomposition import decompose, decompose_poly, recompose
+from ntt import NTT_64_BIT_PRIME
+from params import NTTParams
+from polynomial import ModQPolynomial
 
 MAX_UINT64 = 2**64 - 1
 # Bases that evenly divide the 64-bit word.
@@ -73,3 +76,26 @@ def test_digits_are_bounded_by_base(base_log, x):
     digits = decompose(np.uint64(x), base_log=base_log)
     assert digits.shape == (64 // base_log,)
     assert np.all(digits < (1 << base_log))
+
+
+@pytest.mark.parametrize("base_log", BASE_LOGS)
+@given(
+    coeffs=st.lists(
+        st.integers(min_value=0, max_value=NTT_64_BIT_PRIME - 1),
+        min_size=8,
+        max_size=8,
+    )
+)
+def test_decompose_poly_matches_coefficientwise_decompose(base_log, coeffs):
+    ntt_params = _NTT_PARAMS
+    poly = ModQPolynomial(coeffs, 8, NTT_64_BIT_PRIME, ntt_params)
+    digit_polys = decompose_poly(poly, base_log)
+
+    assert len(digit_polys) == 64 // base_log
+    for j, c in enumerate(coeffs):
+        expected = decompose(np.uint64(c), base_log)
+        actual = np.array([p.coefficients[j] for p in digit_polys], dtype=np.uint64)
+        np.testing.assert_array_equal(actual, expected)
+
+
+_NTT_PARAMS = NTTParams(degree=8, modulus=NTT_64_BIT_PRIME)

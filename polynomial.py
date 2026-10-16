@@ -264,6 +264,15 @@ class ModQPolynomial:
             self.coefficients, self.modulus_degree, modulus, self.ntt_params
         )
 
+    @staticmethod
+    def zeros_like(other: "ModQPolynomial") -> "ModQPolynomial":
+        return ModQPolynomial(
+            np.zeros_like(other.coefficients),
+            other.modulus_degree,
+            other.coefficient_modulus,
+            other.ntt_params,
+        )
+
 
 def vandermonde_matrix(n: int) -> np.ndarray:
     """Computes the Vandermonde matrix used for canonical embedding."""
