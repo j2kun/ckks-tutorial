@@ -99,3 +99,51 @@ def test_add_asymmetric_hypothesis(message1, message2, scale, seed):
     decoded_sum = context.decode(decrypted_sum)
 
     np.testing.assert_allclose(decoded_sum, expected, rtol=0, atol=0.2)
+
+
+def test_ct_pt_add_symmetric():
+    seed = 837465
+    message1 = np.array([1, 2, 3, 4], dtype=np.complex64)
+    message2 = np.array([2, 3, 1, 2], dtype=np.complex64)
+    expected = np.array([3, 5, 4, 6], dtype=np.complex64)
+    context = CKKSContext(DEFAULT_ENCODING_PARAMS)
+    context.rng = SeededRandomSource(seed)
+
+    sk = context.generate_symmetric_private_key()
+    pt1 = context.encode(message1)
+    ct1 = context.encrypt_symmetric(pt1, sk)
+    pt2 = context.encode(message2)
+
+    ct_sum = context.add(ct1, pt2)
+    decrypted_sum = context.decrypt_symmetric(ct_sum, sk)
+    decoded_sum = context.decode(decrypted_sum)
+    np.testing.assert_allclose(decoded_sum, expected, rtol=0, atol=0.2)
+
+    ct_sum = context.add(pt2, ct1)
+    decrypted_sum = context.decrypt_symmetric(ct_sum, sk)
+    decoded_sum = context.decode(decrypted_sum)
+    np.testing.assert_allclose(decoded_sum, expected, rtol=0, atol=0.2)
+
+
+def test_ct_pt_add_asymmetric():
+    seed = 837465
+    message1 = np.array([1, 2, 3, 4], dtype=np.complex64)
+    message2 = np.array([2, 3, 1, 2], dtype=np.complex64)
+    expected = np.array([3, 5, 4, 6], dtype=np.complex64)
+    context = CKKSContext(DEFAULT_ENCODING_PARAMS)
+    context.rng = SeededRandomSource(seed)
+
+    sk, pk = context.generate_asymmetric_keypair()
+    pt1 = context.encode(message1)
+    ct1 = context.encrypt_asymmetric(pt1, pk)
+    pt2 = context.encode(message2)
+
+    ct_sum = context.add(ct1, pt2)
+    decrypted_sum = context.decrypt_asymmetric(ct_sum, sk)
+    decoded_sum = context.decode(decrypted_sum)
+    np.testing.assert_allclose(decoded_sum, expected, rtol=0, atol=0.2)
+
+    ct_sum = context.add(pt2, ct1)
+    decrypted_sum = context.decrypt_asymmetric(ct_sum, sk)
+    decoded_sum = context.decode(decrypted_sum)
+    np.testing.assert_allclose(decoded_sum, expected, rtol=0, atol=0.2)

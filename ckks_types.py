@@ -5,6 +5,7 @@ from typing import Tuple
 
 import numpy as np
 from polynomial import IntPolynomial, ModQPolynomial
+from params import KeySwitchingKeyParams
 
 # A cleartext is a vector of possibly complex values
 Cleartext = np.ndarray
@@ -36,6 +37,9 @@ class Ciphertext:
     data: Tuple[ModQPolynomial, ModQPolynomial]
 
 
+PtOrCt = Plaintext | Ciphertext
+
+
 @dataclass(frozen=True)
 class Deg2Ciphertext:
     """A CKKS Ciphertext after multiplication."""
@@ -57,3 +61,22 @@ class PublicKey:
     """
 
     data: Tuple[ModQPolynomial, ModQPolynomial]
+
+
+@dataclass(frozen=True)
+class KeySwitchingKey:
+    """A key switching key.
+
+    To switch a ciphertext from secret key s to secret key s', the
+    key-switching key is an encryption of s under s'.
+
+    Attributes:
+        data: A list of ciphertexts encrypting the gadget-decomposed
+              s under s', where KeySwitchingKeyParams contains the
+              base B used for the decomposition. The ciphertexts in
+              data encrypt B^i*s for i = k-1, ..., 0 (most significant
+              digits first).
+    """
+
+    data: list[Ciphertext]
+    params: KeySwitchingKeyParams
