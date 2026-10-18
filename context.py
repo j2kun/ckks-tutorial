@@ -19,17 +19,11 @@ from encryption import (
     encrypt_asymmetric,
     decrypt_asymmetric,
 )
-from key_gen import (
-    generate_symmetric_private_key,
-    generate_asymmetric_keypair,
-    generate_asymmetric_key_switching_key,
-    generate_symmetric_key_switching_key,
-)
+import key_gen
 from params import EncodingParams, EncryptionParams, KeySwitchingKeyParams, NTTParams
 from rng import SecureRandomSource
 from addition import add
-from multiplication import mul, mul_plain
-from key_switch import key_switch
+from multiplication import mul, mul_plain, relinearize
 
 
 class CKKSContext:
@@ -83,15 +77,20 @@ class CKKSContext:
         return decrypt_asymmetric(ciphertext, private_key, self.encryption_params)
 
     def generate_symmetric_private_key(self) -> PrivateKey:
-        return generate_symmetric_private_key(self.encryption_params, self.rng)
+        return key_gen.generate_symmetric_private_key(self.encryption_params, self.rng)
 
     def generate_asymmetric_keypair(self) -> Tuple[PrivateKey, PublicKey]:
-        return generate_asymmetric_keypair(self.encryption_params, self.rng)
+        return key_gen.generate_asymmetric_keypair(self.encryption_params, self.rng)
+
+    def initialize_relinearization_key(self, sk: PrivateKey):
+        self.relinearization_key = self.generate_symmetric_key_switching_key(
+            sk * sk, sk
+        )
 
     def generate_symmetric_key_switching_key(
         self, source_key: PrivateKey, target_key: PrivateKey
     ) -> KeySwitchingKey:
-        return generate_symmetric_key_switching_key(
+        return key_gen.generate_symmetric_key_switching_key(
             source_key,
             target_key,
             self.encryption_params,
@@ -105,7 +104,7 @@ class CKKSContext:
         source_key: PrivateKey,
         target_key: PublicKey,
     ) -> KeySwitchingKey:
-        return generate_asymmetric_key_switching_key(
+        return key_gen.generate_asymmetric_key_switching_key(
             source_key,
             target_key,
             self.encryption_params,
@@ -119,6 +118,12 @@ class CKKSContext:
 
     def mul_no_relin(self, ct1: Ciphertext, ct2: Ciphertext) -> Deg2Ciphertext:
         return mul(ct1, ct2)
+
+    def mul(self, ct1: Ciphertext, ct2: Ciphertext) -> Ciphertext:
+        if not hasattr(self, "relinearization_key"):
+            raise ValueError("Must generate relinearization key first")
+        unrelinearized = mul(ct1, ct2)
+        return relinearize(unrelinearized, self.relinearization_key)
 
     def mul_plain(self, v1: PtOrCt, v2: PtOrCt) -> Ciphertext:
         return mul_plain(v1, v2)
