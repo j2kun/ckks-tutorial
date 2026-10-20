@@ -363,3 +363,37 @@ def test_mul_symmetric_hypothesis(message1, message2, scale, seed):
     decoded_product = decode(decrypted_product, decoding_params)
 
     np.testing.assert_allclose(decoded_product, expected, rtol=0, atol=0.2)
+
+
+def test_mul_two_symmetric_large_degree():
+    # Regression test: at larger N, the coefficients of s^2 are no longer
+    # small, and scaling them by B^i mod Q in key generation could overflow an
+    # int64, corrupting the relinearization key.
+    seed = 837465
+    params = EncodingParams(
+        scale=2**20,
+        poly_modulus_degree=1024,
+        coefficient_modulus=NTT_64_BIT_PRIME,
+    )
+    product_params = EncodingParams(
+        scale=2**40,
+        poly_modulus_degree=params.poly_modulus_degree,
+        coefficient_modulus=params.coefficient_modulus,
+    )
+    message1 = np.array([1, 2, 3, 4], dtype=np.complex64)
+    message2 = np.array([2, 3, 1, 2], dtype=np.complex64)
+    expected = np.array([2, 6, 3, 8], dtype=np.complex64)
+    context = CKKSContext(params)
+    context.rng = SeededRandomSource(seed)
+
+    sk = context.generate_symmetric_private_key()
+    context.initialize_relinearization_key(sk)
+    ct1 = context.encrypt_symmetric(context.encode(message1), sk)
+    ct2 = context.encrypt_symmetric(context.encode(message2), sk)
+
+    ct_product = context.mul(ct1, ct2)
+
+    decrypted_product = context.decrypt_symmetric(ct_product, sk)
+    decoded_product = decode(decrypted_product, product_params)
+
+    np.testing.assert_allclose(decoded_product[:4], expected, rtol=0, atol=0.01)

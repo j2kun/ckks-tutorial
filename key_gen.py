@@ -50,12 +50,14 @@ def _scaled_source_keys(
     """Compute B^i * s mod Q for each digit place i = k-1, ..., 0."""
     B = 1 << ks_params.log_base
     num_digits = TOTAL_BIT_LENGTH // ks_params.log_base
-    # Scale before reducing s mod Q: s is ternary, so (B^i mod Q) * s has
-    # coefficients in {-(B^i mod Q), 0, B^i mod Q}, which fit in an int64,
-    # whereas scaling the reduced coefficients (up to Q-1) would overflow.
+    # Because the source_key may not be ternary (e.g., for relinearization
+    # it is s^2 for some ternary s), we need to ensure we don't overflow
+    # int64, which can happen if N is large.
+    Q = ntt_params.modulus
+    python_int_coeffs = source_key.coefficients.astype(object)
     return [
         IntPolynomial(
-            pow(B, i, ntt_params.modulus) * source_key.coefficients,
+            (pow(B, i, Q) * python_int_coeffs) % Q,
             source_key.modulus_degree,
         ).to_mod_q(ntt_params)
         for i in reversed(range(num_digits))
