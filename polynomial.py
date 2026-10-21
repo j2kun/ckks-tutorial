@@ -123,6 +123,15 @@ class IntPolynomial:
     def __neg__(self):
         return IntPolynomial(-self.coefficients, self.modulus_degree)
 
+    def to_mod_q(self, ntt_params: NTTParams) -> "ModQPolynomial":
+        """Reduce this polynomial's coefficients mod Q."""
+        return ModQPolynomial(
+            self.coefficients,
+            modulus_degree=self.modulus_degree,
+            coefficient_modulus=ntt_params.modulus,
+            ntt_params=ntt_params,
+        )
+
 
 class ModQPolynomial:
     """A polynomial with a ring modulus x^N + 1 and coeff modulus Q."""
@@ -253,6 +262,15 @@ class ModQPolynomial:
     def __mod__(self, modulus: int):
         return ModQPolynomial(
             self.coefficients, self.modulus_degree, modulus, self.ntt_params
+        )
+
+    @staticmethod
+    def zeros_like(other: "ModQPolynomial") -> "ModQPolynomial":
+        return ModQPolynomial(
+            np.zeros_like(other.coefficients),
+            other.modulus_degree,
+            other.coefficient_modulus,
+            other.ntt_params,
         )
 
 

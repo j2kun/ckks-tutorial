@@ -33,3 +33,14 @@ class EncryptionParams:
 
     degree: int
     modulus: int
+
+
+@dataclass(frozen=True)
+class KeySwitchingKeyParams:
+    """Parameters determining the details of key switching.
+
+    Params:
+        log_base: the base-2 logarithm of the number base B
+    """
+
+    log_base: int

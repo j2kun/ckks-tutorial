@@ -36,6 +36,16 @@ def decrypt_symmetric(
     return bias + sample * secret_key
 
 
+def extract_noise(
+    ciphertext: Ciphertext,
+    secret_key: PrivateKey,
+    plaintext: Plaintext,
+) -> ModQPolynomial:
+    """A debug helper to extract the exact noise polynomial from a ciphertext."""
+    bias, sample = ciphertext.data
+    return (bias + sample * secret_key) - plaintext
+
+
 def encrypt_asymmetric(
     plaintext: Plaintext,
     public_key: PublicKey,
