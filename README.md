@@ -8,6 +8,7 @@ A blog series building up CKKS from scratch.
 2. [Encryption and Decryption](https://www.jeremykun.com/2026/09/23/ckks-encryption-and-decryption/)
 3. [Addition and Multiplication](https://www.jeremykun.com/2026/10/11/ckks-addition-and-multiplication/)
 4. [Key Switching and Relinearization](https://www.jeremykun.com/2026/10/21/ckks-key-switching-and-relinearization/)
+5. [Rescaling](https://www.jeremykun.com/2026/11/11/ckks-rescaling/)
 
 ## Additional resources :
 
