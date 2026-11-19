@@ -14,7 +14,7 @@ class PrecomputedNTT:
     psi_inv_powers: np.ndarray
 
 
-@functools.lru_cache(maxsize=10)
+@functools.lru_cache(maxsize=100)
 def precompute_ntt(q: int, n: int) -> PrecomputedNTT:
     psi = get_primitive_root(q, 2 * n)
     psi_inv = pow(psi, -1, q)

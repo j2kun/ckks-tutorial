@@ -23,19 +23,25 @@ from ntt import NTT_32_BIT_PRIME, NTT_64_BIT_PRIME
 #     np.testing.assert_equal(plaintext.coefficients, expected)
 
 
+# Encoding single-limb plaintexts, preserving the test cases from
+# before RNS was introduced.
+
+
 def test_encode():
     message = np.array([1, 2])
     params = EncodingParams(
         scale=1024,
         poly_modulus_degree=4,
-        coefficient_modulus=NTT_32_BIT_PRIME,
+        moduli=[NTT_32_BIT_PRIME],
     )
-    ntt_params = NTTParams(
-        degree=params.poly_modulus_degree,
-        modulus=params.coefficient_modulus,
-    )
+    ntt_params = [
+        NTTParams(
+            degree=params.poly_modulus_degree,
+            modulus=params.moduli[0],
+        )
+    ]
     plaintext = encode(message, params, ntt_params)
-    expected = np.array([1536, -362, 0, 362], dtype=np.int64)
+    expected = [1536, -362, 0, 362]
     np.testing.assert_equal(
         plaintext.lift_to_signed_representative().coefficients, expected
     )
@@ -46,12 +52,14 @@ def test_encode_decode_exact():
     params = EncodingParams(
         scale=2**20,
         poly_modulus_degree=8,
-        coefficient_modulus=NTT_32_BIT_PRIME,
+        moduli=[NTT_32_BIT_PRIME],
     )
-    ntt_params = NTTParams(
-        degree=params.poly_modulus_degree,
-        modulus=params.coefficient_modulus,
-    )
+    ntt_params = [
+        NTTParams(
+            degree=params.poly_modulus_degree,
+            modulus=params.moduli[0],
+        )
+    ]
     plaintext = encode(message, params, ntt_params)
     decoded_message = decode(plaintext, params)
     np.testing.assert_allclose(decoded_message, message, atol=1e-06)
@@ -71,12 +79,129 @@ def test_encode_decode_approx_equality(message):
     params = EncodingParams(
         scale=2**40,
         poly_modulus_degree=32,
-        coefficient_modulus=NTT_64_BIT_PRIME,
+        moduli=[NTT_64_BIT_PRIME],
     )
-    ntt_params = NTTParams(
-        degree=params.poly_modulus_degree,
-        modulus=params.coefficient_modulus,
+    ntt_params = [
+        NTTParams(
+            degree=params.poly_modulus_degree,
+            modulus=params.moduli[0],
+        )
+    ]
+    encoded = encode(message, params, ntt_params)
+    decoded = decode(encoded, params)
+    np.testing.assert_allclose(decoded, message, rtol=0, atol=1e-06)
+
+
+# Multi-limb RNS tests
+from primes import generate_ntt_primes
+
+
+def test_encode_rns():
+    num_limbs = 3
+    degree = 4
+    primes = generate_ntt_primes(
+        bit_width=60, poly_modulus_degree=degree, count=num_limbs
     )
+    message = np.array([1, 2])
+    params = EncodingParams(
+        scale=1024,
+        poly_modulus_degree=degree,
+        moduli=primes,
+    )
+    ntt_params = [
+        NTTParams(degree=params.poly_modulus_degree, modulus=prime) for prime in primes
+    ]
+    plaintext = encode(message, params, ntt_params)
+
+    expected = [1536, -362, 0, 362]
+
+    # In polynomial_test.py we test that going to/from RNS form is safe, so we
+    # can simplify the assertion to check the lifted coefficients, matching the
+    # single-limb test above.
+    np.testing.assert_equal(
+        plaintext.lift_to_signed_representative().coefficients, expected
+    )
+
+
+def test_encode_decode_rns_exact():
+    num_limbs = 3
+    degree = 8
+    primes = generate_ntt_primes(
+        bit_width=60, poly_modulus_degree=degree, count=num_limbs
+    )
+    message = np.array([3 + 4j, 2 - 1j, 1 + 0j, 0 + 2j])
+    params = EncodingParams(
+        scale=2**20,
+        poly_modulus_degree=degree,
+        moduli=primes,
+    )
+    ntt_params = [
+        NTTParams(
+            degree=params.poly_modulus_degree,
+            modulus=prime,
+        )
+        for prime in primes
+    ]
+    plaintext = encode(message, params, ntt_params)
+    decoded_message = decode(plaintext, params)
+    np.testing.assert_allclose(decoded_message, message, atol=1e-06)
+
+
+@given(
+    message=st.lists(
+        st.integers(min_value=0, max_value=1_000_000),
+        min_size=16,
+        max_size=16,
+    )
+)
+def test_encode_decode_rns_approx_equality(message):
+    num_limbs = 3
+    degree = 32
+    primes = generate_ntt_primes(
+        bit_width=60, poly_modulus_degree=degree, count=num_limbs
+    )
+    # encode + decode inherently loses precision due to the rounding step
+    # of encoding. The amount of precision lost is decreased as the scale
+    # is increased.
+    params = EncodingParams(
+        scale=2**40,
+        poly_modulus_degree=degree,
+        moduli=primes,
+    )
+    ntt_params = [
+        NTTParams(
+            degree=params.poly_modulus_degree,
+            modulus=prime,
+        )
+        for prime in primes
+    ]
+    encoded = encode(message, params, ntt_params)
+    decoded = decode(encoded, params)
+    np.testing.assert_allclose(decoded, message, rtol=0, atol=1e-06)
+
+
+@given(
+    num_limbs=st.integers(min_value=2, max_value=20),
+    log_degree=st.integers(min_value=2, max_value=8),
+)
+def test_encode_decode_rns_limb_sizes(num_limbs, log_degree):
+    degree = 2**log_degree
+    primes = generate_ntt_primes(
+        bit_width=60, poly_modulus_degree=degree, count=num_limbs
+    )
+    message = [complex(k) / 10 for k in range(degree // 2)]
+    params = EncodingParams(
+        scale=2**40,
+        poly_modulus_degree=degree,
+        moduli=primes,
+    )
+    ntt_params = [
+        NTTParams(
+            degree=params.poly_modulus_degree,
+            modulus=prime,
+        )
+        for prime in primes
+    ]
     encoded = encode(message, params, ntt_params)
     decoded = decode(encoded, params)
     np.testing.assert_allclose(decoded, message, rtol=0, atol=1e-06)

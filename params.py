@@ -24,7 +24,7 @@ class EncodingParams:
 
     scale: float
     poly_modulus_degree: int
-    coefficient_modulus: int
+    moduli: list[int]
 
 
 @dataclass(frozen=True)

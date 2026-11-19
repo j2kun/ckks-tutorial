@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Tuple
 
 import numpy as np
-from polynomial import IntPolynomial, ModQPolynomial
+from polynomial import IntPolynomial, ModQPolynomial, RNSPolynomial
 from params import KeySwitchingKeyParams
 
 # A cleartext is a vector of possibly complex values
@@ -12,7 +12,7 @@ Cleartext = np.ndarray
 
 # A plaintext is a polynomial (in coefficient form) in a ring
 # Z/QZ[x] / (x^N + 1) for some N (power of two) and Q.
-Plaintext = ModQPolynomial
+Plaintext = RNSPolynomial
 
 
 # A private key is a polynomial s(x) with ternary coefficients.

@@ -1,13 +1,14 @@
 import numpy as np
 
-from polynomial import canonical_embedding
-from polynomial import inverse_canonical_embedding
 from ckks_types import Cleartext, Plaintext
 from params import EncodingParams, NTTParams
+from polynomial import IntPolynomial
+from polynomial import canonical_embedding
+from polynomial import inverse_canonical_embedding
 
 
 def encode(
-    message: Cleartext, params: EncodingParams, ntt_params: NTTParams
+    message: Cleartext, params: EncodingParams, ntt_params: list[NTTParams]
 ) -> Plaintext:
     """Encode a vector of complex numbers into a plaintext polynomial.
 
@@ -34,12 +35,9 @@ def encode(
     # result of inverse canonical_embedding is guaranteed to be real-valued.
     polynomial = inverse_canonical_embedding(hermitian_msg)
     rounded_scaled_coeffs = np.round(np.real(polynomial) * params.scale)
-    return Plaintext(
-        rounded_scaled_coeffs,
-        params.poly_modulus_degree,
-        params.coefficient_modulus,
-        ntt_params,
-    )
+    return IntPolynomial(
+        rounded_scaled_coeffs, params.poly_modulus_degree, dtype=object
+    ).to_rns(ntt_params)
 
 
 def decode(plaintext: Plaintext, params: EncodingParams) -> Cleartext:
@@ -49,6 +47,8 @@ def decode(plaintext: Plaintext, params: EncodingParams) -> Cleartext:
     embedding, then extracts the first N/2 entries.
     """
     centered_plaintext = plaintext.lift_to_signed_representative()
-    scale_removed_coeffs = centered_plaintext.coefficients / params.scale
+    scale_removed_coeffs = (
+        centered_plaintext.coefficients.astype(np.float64) / params.scale
+    )
     unembedded = canonical_embedding(scale_removed_coeffs)
     return unembedded[: params.poly_modulus_degree // 2]
