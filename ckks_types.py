@@ -34,7 +34,7 @@ class Ciphertext:
             sample (c_1): A uniformly random masking polynomial.
     """
 
-    data: Tuple[ModQPolynomial, ModQPolynomial]
+    data: Tuple[RNSPolynomial, RNSPolynomial]
 
 
 PtOrCt = Plaintext | Ciphertext
@@ -60,7 +60,7 @@ class PublicKey:
             a: A uniformly random sample polynomial from R_Q.
     """
 
-    data: Tuple[ModQPolynomial, ModQPolynomial]
+    data: Tuple[RNSPolynomial, RNSPolynomial]
 
 
 @dataclass(frozen=True)

@@ -1,8 +1,9 @@
 from ckks_types import KeySwitchingKey, PrivateKey, PublicKey
 from decomposition import TOTAL_BIT_LENGTH
 from encryption import encrypt_symmetric, encrypt_asymmetric
+from encryption import sample_uniform_rns_poly
 from params import EncryptionParams, NTTParams, KeySwitchingKeyParams
-from polynomial import IntPolynomial, ModQPolynomial
+from polynomial import IntPolynomial, RNSPolynomial, ModQPolynomial
 from typing import Tuple
 import rng
 
@@ -19,25 +20,20 @@ def generate_symmetric_private_key(
 
 def generate_asymmetric_keypair(
     params: EncryptionParams,
+    ntt_params: list[NTTParams],
     random_source: rng.RandomSource,
 ) -> Tuple[PrivateKey, PublicKey]:
     sk = generate_symmetric_private_key(params, random_source)
-    ntt_params = NTTParams(degree=params.degree, modulus=params.modulus)
 
-    a = ModQPolynomial(
-        random_source.gen_uniform_poly(params.degree, params.modulus),
+    a = sample_uniform_rns_poly(random_source, params.degree, ntt_params)
+    e = IntPolynomial(
+        random_source.gen_gaussian_poly(params.degree),
         modulus_degree=params.degree,
-        coefficient_modulus=params.modulus,
-        ntt_params=ntt_params,
-    )
-    e = ModQPolynomial(
-        random_source.gen_gaussian_poly(params.degree, params.modulus),
-        modulus_degree=params.degree,
-        coefficient_modulus=params.modulus,
+    ).to_rns(
         ntt_params=ntt_params,
     )
 
-    b = (-(a * sk) + e) % params.modulus
+    b = -(a * sk) + e
     pk = PublicKey(data=(b, a))
     return sk, pk
 

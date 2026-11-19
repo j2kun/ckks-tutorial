@@ -9,9 +9,7 @@ class RandomSource(abc.ABC):
     """An interface for random number generation in CKKS."""
 
     @abc.abstractmethod
-    def gen_gaussian_poly(
-        self, degree: int, modulus: int, sigma: float = 3.19
-    ) -> np.ndarray:
+    def gen_gaussian_poly(self, degree: int, sigma: float = 3.19) -> np.ndarray:
         pass
 
     @abc.abstractmethod
@@ -29,11 +27,9 @@ class SecureRandomSource(RandomSource):
     def __init__(self):
         self.rng = secrets.SystemRandom()
 
-    def gen_gaussian_poly(
-        self, degree: int, modulus: int, sigma: float = 3.19
-    ) -> np.ndarray:
+    def gen_gaussian_poly(self, degree: int, sigma: float = 3.19) -> np.ndarray:
         return np.array(
-            [round(self.rng.normalvariate(0, sigma)) % modulus for _ in range(degree)],
+            [round(self.rng.normalvariate(0, sigma)) for _ in range(degree)],
             dtype=np.int64,
         )
 
@@ -56,9 +52,7 @@ class ZeroNoiseRandomSource(SecureRandomSource):
     preclude an exact comparison.
     """
 
-    def gen_gaussian_poly(
-        self, degree: int, modulus: int, sigma: float = 3.19
-    ) -> np.ndarray:
+    def gen_gaussian_poly(self, degree: int, sigma: float = 3.19) -> np.ndarray:
         return np.zeros((degree,), dtype=np.int64)
 
 

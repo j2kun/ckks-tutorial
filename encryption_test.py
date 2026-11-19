@@ -19,6 +19,7 @@ from params import EncryptionParams, NTTParams
 from ntt import NTT_32_BIT_PRIME, NTT_64_BIT_PRIME
 from rng import SeededRandomSource, ZeroNoiseRandomSource
 from test_utils import single_limb_encoding_and_ntt_params
+from polynomial import IntPolynomial
 
 DEFAULT_ENCODING_PARAMS, DEFAULT_NTT_PARAMS = single_limb_encoding_and_ntt_params(
     scale=2**20,
@@ -45,7 +46,7 @@ def test_encrypt_decrypt_hypothesis(message, scale, seed, modulus):
         poly_modulus_degree=degree,
         modulus=modulus,
     )
-    params = EncryptionParams(degree=degree, modulus=modulus)
+    params = EncryptionParams(degree=degree, moduli=[modulus])
     random_source = SeededRandomSource(seed)
 
     sk = generate_symmetric_private_key(params, random_source)
@@ -58,14 +59,15 @@ def test_encrypt_decrypt_hypothesis(message, scale, seed, modulus):
 
 
 @hypothesis.given(st.integers(min_value=0, max_value=2**32 - 1))
+@hypothesis.settings(deadline=5000)
 def test_exact_encrypt_decrypt(seed):
     # This tests encrypt/decrypt without cryptographic noise, which allows for
     # exactness checking to verify the underlying algebra.
     degree = 8
     modulus = NTT_32_BIT_PRIME
-    params = EncryptionParams(degree=degree, modulus=modulus)
+    params = EncryptionParams(degree=degree, moduli=[modulus])
     rng = std_random.Random(seed)
-    ntt_params = NTTParams(degree=params.degree, modulus=params.modulus)
+    ntt_params = [NTTParams(degree=params.degree, modulus=modulus)]
 
     # Generate arbitrary plaintext exactly, to avoid encoding roundoff causing
     # equality comparison failures.
@@ -73,21 +75,20 @@ def test_exact_encrypt_decrypt(seed):
         [rng.randint(-modulus // 2, modulus // 2) for _ in range(degree)],
         dtype=np.int64,
     )
-    pt = Plaintext(pt_data, degree, coefficient_modulus=modulus, ntt_params=ntt_params)
+    pt = IntPolynomial(pt_data, degree).to_rns(ntt_params=ntt_params)
 
     random_source = ZeroNoiseRandomSource()
     sk = generate_symmetric_private_key(params, random_source)
     ct = encrypt_symmetric(pt, sk, params, random_source)
     decrypted_pt = decrypt_symmetric(ct, sk, params)
-
-    assert (decrypted_pt % params.modulus) == pt
+    assert decrypted_pt == pt
 
 
 def test_encrypt_decrypt():
     message = [(1 + 0j), (1 + 0j), (1 + 0j), (1 + 0j)]
     seed = 0
     params = EncryptionParams(
-        degree=DEFAULT_ENCODING_PARAMS.poly_modulus_degree, modulus=NTT_32_BIT_PRIME
+        degree=DEFAULT_ENCODING_PARAMS.poly_modulus_degree, moduli=[NTT_32_BIT_PRIME]
     )
     random_source = SeededRandomSource(seed)
 
@@ -112,7 +113,7 @@ def test_encrypt_decrypt_64_bit_overflow():
         poly_modulus_degree=degree,
         modulus=modulus,
     )
-    params = EncryptionParams(degree=degree, modulus=modulus)
+    params = EncryptionParams(degree=degree, moduli=[modulus])
     random_source = SeededRandomSource(seed)
 
     sk = generate_symmetric_private_key(params, random_source)
@@ -142,10 +143,10 @@ def test_encrypt_decrypt_asymmetric_hypothesis(message, scale, seed, modulus):
         poly_modulus_degree=degree,
         modulus=modulus,
     )
-    params = EncryptionParams(degree=degree, modulus=modulus)
+    params = EncryptionParams(degree=degree, moduli=[modulus])
     random_source = SeededRandomSource(seed)
 
-    sk, pk = generate_asymmetric_keypair(params, random_source)
+    sk, pk = generate_asymmetric_keypair(params, ntt_params, random_source)
     pt = encode(message, encoding_params, ntt_params)
     ct = encrypt_asymmetric(pt, pk, params, random_source)
     decrypted_pt = decrypt_asymmetric(ct, sk, params)
@@ -155,30 +156,24 @@ def test_encrypt_decrypt_asymmetric_hypothesis(message, scale, seed, modulus):
 
 
 @hypothesis.given(st.integers(min_value=0, max_value=2**32 - 1))
+@hypothesis.settings(deadline=5000)
 def test_exact_encrypt_decrypt_asymmetric(seed):
     degree = 8
     modulus = NTT_32_BIT_PRIME
-    params = EncryptionParams(degree=degree, modulus=modulus)
-    ntt_params = NTTParams(degree=degree, modulus=modulus)
+    params = EncryptionParams(degree=degree, moduli=[modulus])
+    ntt_params = [NTTParams(degree=degree, modulus=modulus)]
     rng = std_random.Random(seed)
 
     pt_data = np.array(
         [rng.randint(-modulus // 2, modulus // 2) for _ in range(degree)],
         dtype=np.int64,
     )
-    pt = Plaintext(
-        pt_data,
-        degree,
-        coefficient_modulus=modulus,
-        ntt_params=ntt_params,
-    )
+    pt = IntPolynomial(pt_data, degree).to_rns(ntt_params=ntt_params)
 
     random_source = ZeroNoiseRandomSource()
-    sk, pk = generate_asymmetric_keypair(params, random_source)
+    sk, pk = generate_asymmetric_keypair(params, ntt_params, random_source)
     ct = encrypt_asymmetric(pt, pk, params, random_source)
     decrypted_pt = decrypt_asymmetric(ct, sk, params)
-    decrypted_pt = decrypted_pt % params.modulus
-
     assert decrypted_pt == pt
 
 
@@ -187,10 +182,11 @@ def test_encrypt_decrypt_asymmetric():
     seed = 0
     modulus = NTT_32_BIT_PRIME
     degree = DEFAULT_ENCODING_PARAMS.poly_modulus_degree
-    params = EncryptionParams(degree=degree, modulus=modulus)
+    params = EncryptionParams(degree=degree, moduli=[modulus])
+    ntt_params = [NTTParams(degree=degree, modulus=modulus)]
     random_source = SeededRandomSource(seed)
 
-    sk, pk = generate_asymmetric_keypair(params, random_source)
+    sk, pk = generate_asymmetric_keypair(params, ntt_params, random_source)
     pt = encode(message, DEFAULT_ENCODING_PARAMS, DEFAULT_NTT_PARAMS)
     ct = encrypt_asymmetric(pt, pk, params, random_source)
     decrypted_pt = decrypt_asymmetric(ct, sk, params)
@@ -211,10 +207,10 @@ def test_encrypt_decrypt_asymmetric_64_bit_overflow():
         poly_modulus_degree=degree,
         modulus=modulus,
     )
-    params = EncryptionParams(degree=degree, modulus=modulus)
+    params = EncryptionParams(degree=degree, moduli=[modulus])
     random_source = SeededRandomSource(seed)
 
-    sk, pk = generate_asymmetric_keypair(params, random_source)
+    sk, pk = generate_asymmetric_keypair(params, ntt_params, random_source)
     pt = encode(message, encoding_params, ntt_params)
     ct = encrypt_asymmetric(pt, pk, params, random_source)
     decrypted_pt = decrypt_asymmetric(ct, sk, params)

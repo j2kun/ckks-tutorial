@@ -32,7 +32,7 @@ class EncryptionParams:
     """Parameters needed for encryption and key generation."""
 
     degree: int
-    modulus: int
+    moduli: list[int]
 
 
 @dataclass(frozen=True)

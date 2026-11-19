@@ -1,7 +1,31 @@
+from typing import Iterable
+
 from ckks_types import Ciphertext, Deg2Ciphertext, Plaintext, PrivateKey, PublicKey
-from params import EncryptionParams
-from polynomial import ModQPolynomial, IntPolynomial
+from params import EncryptionParams, NTTParams
+from polynomial import IntPolynomial, ModQPolynomial, RNSPolynomial
 import rng
+
+
+def sample_uniform_rns_poly(
+    random_source: rng.RandomSource, degree: int, ntt_params: Iterable[NTTParams]
+) -> RNSPolynomial:
+    """Sample a uniform polynomial limbwise."""
+    # Note we can't sample the error polynomial limbwise, because the error of
+    # each limb relates in a complex way to the error of the reconstructed
+    # polynomial.
+    samples = []
+    for ntt_param in ntt_params:
+        modulus = ntt_param.modulus
+        samples.append(
+            ModQPolynomial(
+                random_source.gen_uniform_poly(degree, modulus),
+                modulus_degree=degree,
+                coefficient_modulus=modulus,
+                ntt_params=ntt_param,
+            )
+        )
+
+    return RNSPolynomial(limbs=samples)
 
 
 def encrypt_symmetric(
@@ -10,18 +34,12 @@ def encrypt_symmetric(
     params: EncryptionParams,
     random_source: rng.RandomSource,
 ) -> Ciphertext:
-    sample = ModQPolynomial(
-        random_source.gen_uniform_poly(degree=params.degree, modulus=params.modulus),
+    sample = sample_uniform_rns_poly(random_source, params.degree, plaintext.ntt_params)
+    error = IntPolynomial(
+        random_source.gen_gaussian_poly(degree=params.degree),
         modulus_degree=params.degree,
-        coefficient_modulus=params.modulus,
-        ntt_params=plaintext.ntt_params,
-    )
-    error = ModQPolynomial(
-        random_source.gen_gaussian_poly(degree=params.degree, modulus=params.modulus),
-        modulus_degree=params.degree,
-        coefficient_modulus=params.modulus,
-        ntt_params=plaintext.ntt_params,
-    )
+        dtype=object,
+    ).to_rns(ntt_params=plaintext.ntt_params)
 
     bias = -(sample * private_key) + plaintext + error
     return Ciphertext(data=(bias, sample))
@@ -40,10 +58,10 @@ def extract_noise(
     ciphertext: Ciphertext,
     secret_key: PrivateKey,
     plaintext: Plaintext,
-) -> ModQPolynomial:
+) -> IntPolynomial:
     """A debug helper to extract the exact noise polynomial from a ciphertext."""
     bias, sample = ciphertext.data
-    return (bias + sample * secret_key) - plaintext
+    return ((bias + sample * secret_key) - plaintext).lift_to_signed_representative()
 
 
 def encrypt_asymmetric(
@@ -57,18 +75,16 @@ def encrypt_asymmetric(
         random_source.gen_ternary_poly(params.degree),
         modulus_degree=params.degree,
     )
-    e0 = ModQPolynomial(
-        random_source.gen_gaussian_poly(params.degree, params.modulus),
+    e0 = IntPolynomial(
+        random_source.gen_gaussian_poly(params.degree),
         modulus_degree=params.degree,
-        coefficient_modulus=params.modulus,
-        ntt_params=plaintext.ntt_params,
-    )
-    e1 = ModQPolynomial(
-        random_source.gen_gaussian_poly(params.degree, params.modulus),
+        dtype=object,
+    ).to_rns(ntt_params=plaintext.ntt_params)
+    e1 = IntPolynomial(
+        random_source.gen_gaussian_poly(params.degree),
         modulus_degree=params.degree,
-        coefficient_modulus=params.modulus,
-        ntt_params=plaintext.ntt_params,
-    )
+        dtype=object,
+    ).to_rns(ntt_params=plaintext.ntt_params)
 
     c0 = b * u + plaintext + e0
     c1 = a * u + e1
