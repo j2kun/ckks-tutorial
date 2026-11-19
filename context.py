@@ -35,13 +35,16 @@ class CKKSContext:
     ):
         self.encoding_params = params
         self.ks_params = ks_params
-        self.ntt_params = NTTParams(
-            degree=params.poly_modulus_degree,
-            modulus=params.coefficient_modulus,
-        )
+        self.ntt_params = [
+            NTTParams(
+                degree=params.poly_modulus_degree,
+                modulus=modulus,
+            )
+            for modulus in params.moduli
+        ]
         self.encryption_params = EncryptionParams(
             degree=params.poly_modulus_degree,
-            modulus=params.coefficient_modulus,
+            moduli=params.moduli,
         )
         # TODO: add proper selection of sigma parameter
         self.rng = SecureRandomSource()
@@ -80,7 +83,9 @@ class CKKSContext:
         return key_gen.generate_symmetric_private_key(self.encryption_params, self.rng)
 
     def generate_asymmetric_keypair(self) -> Tuple[PrivateKey, PublicKey]:
-        return key_gen.generate_asymmetric_keypair(self.encryption_params, self.rng)
+        return key_gen.generate_asymmetric_keypair(
+            self.encryption_params, self.ntt_params, self.rng
+        )
 
     def initialize_relinearization_key(self, sk: PrivateKey):
         self.relinearization_key = self.generate_symmetric_key_switching_key(
