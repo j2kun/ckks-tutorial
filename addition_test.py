@@ -6,13 +6,13 @@ import numpy as np
 
 from context import CKKSContext
 from ntt import NTT_64_BIT_PRIME
-from params import EncodingParams
 from rng import SeededRandomSource
+from test_utils import single_limb_encoding_and_ntt_params
 
-DEFAULT_ENCODING_PARAMS = EncodingParams(
+DEFAULT_ENCODING_PARAMS, _ = single_limb_encoding_and_ntt_params(
     scale=2**20,
     poly_modulus_degree=8,
-    coefficient_modulus=NTT_64_BIT_PRIME,
+    modulus=NTT_64_BIT_PRIME,
 )
 
 
@@ -75,10 +75,10 @@ def test_add_two_asymmetric():
     st.integers(min_value=0, max_value=10),
 )
 def test_add_asymmetric_hypothesis(message1, message2, scale, seed):
-    encoding_params = EncodingParams(
+    encoding_params, _ = single_limb_encoding_and_ntt_params(
         scale=scale,
         poly_modulus_degree=8,
-        coefficient_modulus=NTT_64_BIT_PRIME,
+        modulus=NTT_64_BIT_PRIME,
     )
 
     message1 = np.array(message1, dtype=np.complex64)

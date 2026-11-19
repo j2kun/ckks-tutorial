@@ -5,23 +5,23 @@ import numpy as np
 from context import CKKSContext
 from encoding import decode
 from ntt import NTT_64_BIT_PRIME
-from params import EncodingParams
 from rng import SeededRandomSource
 from encoding import encode
 from rescaling import rescale
+from test_utils import single_limb_encoding_and_ntt_params
 
 
 def test_rescale():
-    rescaled_encoding_params = EncodingParams(
+    rescaled_encoding_params, _ = single_limb_encoding_and_ntt_params(
         scale=2**20,
         poly_modulus_degree=8,
         # This prime is close to NTT_64_BIT_PRIME / 2**20
-        coefficient_modulus=2199023255521,
+        modulus=2199023255521,
     )
-    squared_encoding_params = EncodingParams(
+    squared_encoding_params, squared_ntt_params = single_limb_encoding_and_ntt_params(
         scale=2**40,
         poly_modulus_degree=8,
-        coefficient_modulus=NTT_64_BIT_PRIME,
+        modulus=NTT_64_BIT_PRIME,
     )
 
     seed = 837465
@@ -33,12 +33,12 @@ def test_rescale():
     sq_context = CKKSContext(squared_encoding_params)
     sq_context.rng = SeededRandomSource(seed)
     sk = sq_context.generate_symmetric_private_key()
-    pt = encode(message, squared_encoding_params, sq_context.ntt_params)
+    pt = encode(message, squared_encoding_params, squared_ntt_params)
     ct = sq_context.encrypt_symmetric(pt, sk)
 
     ct_rescaled = rescale(
         ct,
-        rescaled_encoding_params.coefficient_modulus,
+        rescaled_encoding_params.moduli[0],
         context.ntt_params,
     )
 
@@ -49,18 +49,18 @@ def test_rescale():
 
 
 def test_mul_relin_rescale_symmetric():
-    rescaled_encoding_params = EncodingParams(
+    rescaled_encoding_params, _ = single_limb_encoding_and_ntt_params(
         scale=2**20,
         poly_modulus_degree=8,
         # This prime is close to NTT_64_BIT_PRIME / 2**20
-        coefficient_modulus=2199023255521,
+        modulus=2199023255521,
     )
     # unlike test_rescale, we have to use the same scale for encoding as for
     # the rescaled params
-    input_encoding_params = EncodingParams(
+    input_encoding_params, _ = single_limb_encoding_and_ntt_params(
         scale=2**20,
         poly_modulus_degree=8,
-        coefficient_modulus=NTT_64_BIT_PRIME,
+        modulus=NTT_64_BIT_PRIME,
     )
 
     seed = 837465
@@ -82,7 +82,7 @@ def test_mul_relin_rescale_symmetric():
     ct_product = context.mul(ct1, ct2)
     ct_product = rescale(
         ct_product,
-        rescaled_encoding_params.coefficient_modulus,
+        rescaled_encoding_params.moduli[0],
         rescaled_context.ntt_params,
     )
 

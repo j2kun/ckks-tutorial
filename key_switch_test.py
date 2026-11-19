@@ -7,13 +7,14 @@ from context import CKKSContext
 from encoding import decode
 from key_switch import key_switch
 from ntt import NTT_64_BIT_PRIME
-from params import EncodingParams, KeySwitchingKeyParams
+from params import KeySwitchingKeyParams
 from rng import SeededRandomSource
+from test_utils import single_limb_encoding_and_ntt_params
 
-DEFAULT_ENCODING_PARAMS = EncodingParams(
+DEFAULT_ENCODING_PARAMS, _ = single_limb_encoding_and_ntt_params(
     scale=2**20,
     poly_modulus_degree=8,
-    coefficient_modulus=NTT_64_BIT_PRIME,
+    modulus=NTT_64_BIT_PRIME,
 )
 
 

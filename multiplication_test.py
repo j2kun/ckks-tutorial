@@ -8,21 +8,21 @@ from context import CKKSContext
 from encryption import decrypt_deg2
 from encoding import decode
 from ntt import NTT_64_BIT_PRIME
-from params import EncodingParams
 from rng import SeededRandomSource
+from test_utils import single_limb_encoding_and_ntt_params
 
-DEFAULT_ENCODING_PARAMS = EncodingParams(
+DEFAULT_ENCODING_PARAMS, _ = single_limb_encoding_and_ntt_params(
     scale=2**20,
     poly_modulus_degree=8,
-    coefficient_modulus=NTT_64_BIT_PRIME,
+    modulus=NTT_64_BIT_PRIME,
 )
 
 # Without relinearizing the ciphertext yet, we need a separate encoding params
 # for the product two scale-D ciphertexts, which has a scale of D**2
-PRODUCT_ENCODING_PARAMS = EncodingParams(
+PRODUCT_ENCODING_PARAMS, _ = single_limb_encoding_and_ntt_params(
     scale=2**40,
     poly_modulus_degree=DEFAULT_ENCODING_PARAMS.poly_modulus_degree,
-    coefficient_modulus=DEFAULT_ENCODING_PARAMS.coefficient_modulus,
+    modulus=DEFAULT_ENCODING_PARAMS.moduli[0],
 )
 
 
@@ -133,15 +133,15 @@ def test_mul_no_relin_plain_asymmetric():
     st.integers(min_value=0, max_value=10),
 )
 def test_mul_no_relin_symmetric_hypothesis(message1, message2, scale, seed):
-    encoding_params = EncodingParams(
+    encoding_params, _ = single_limb_encoding_and_ntt_params(
         scale=scale,
         poly_modulus_degree=8,
-        coefficient_modulus=NTT_64_BIT_PRIME,
+        modulus=NTT_64_BIT_PRIME,
     )
-    decoding_params = EncodingParams(
+    decoding_params, _ = single_limb_encoding_and_ntt_params(
         scale=scale**2,
         poly_modulus_degree=8,
-        coefficient_modulus=NTT_64_BIT_PRIME,
+        modulus=NTT_64_BIT_PRIME,
     )
 
     message1 = np.array(message1, dtype=np.complex64)
@@ -179,15 +179,15 @@ def test_mul_no_relin_symmetric_hypothesis(message1, message2, scale, seed):
     st.integers(min_value=0, max_value=10),
 )
 def test_mul_no_relin_asymmetric_hypothesis(message1, message2, scale, seed):
-    encoding_params = EncodingParams(
+    encoding_params, _ = single_limb_encoding_and_ntt_params(
         scale=scale,
         poly_modulus_degree=8,
-        coefficient_modulus=NTT_64_BIT_PRIME,
+        modulus=NTT_64_BIT_PRIME,
     )
-    decoding_params = EncodingParams(
+    decoding_params, _ = single_limb_encoding_and_ntt_params(
         scale=scale**2,
         poly_modulus_degree=8,
-        coefficient_modulus=NTT_64_BIT_PRIME,
+        modulus=NTT_64_BIT_PRIME,
     )
 
     message1 = np.array(message1, dtype=np.complex64)
@@ -333,15 +333,15 @@ def test_mul_two_asymmetric():
     st.integers(min_value=0, max_value=10),
 )
 def test_mul_symmetric_hypothesis(message1, message2, scale, seed):
-    encoding_params = EncodingParams(
+    encoding_params, _ = single_limb_encoding_and_ntt_params(
         scale=scale,
         poly_modulus_degree=8,
-        coefficient_modulus=NTT_64_BIT_PRIME,
+        modulus=NTT_64_BIT_PRIME,
     )
-    decoding_params = EncodingParams(
+    decoding_params, _ = single_limb_encoding_and_ntt_params(
         scale=scale**2,
         poly_modulus_degree=8,
-        coefficient_modulus=NTT_64_BIT_PRIME,
+        modulus=NTT_64_BIT_PRIME,
     )
 
     message1 = np.array(message1, dtype=np.complex64)
@@ -370,15 +370,15 @@ def test_mul_two_symmetric_large_degree():
     # small, and scaling them by B^i mod Q in key generation could overflow an
     # int64, corrupting the relinearization key.
     seed = 837465
-    params = EncodingParams(
+    params, _ = single_limb_encoding_and_ntt_params(
         scale=2**20,
         poly_modulus_degree=1024,
-        coefficient_modulus=NTT_64_BIT_PRIME,
+        modulus=NTT_64_BIT_PRIME,
     )
-    product_params = EncodingParams(
+    product_params, _ = single_limb_encoding_and_ntt_params(
         scale=2**40,
         poly_modulus_degree=params.poly_modulus_degree,
-        coefficient_modulus=params.coefficient_modulus,
+        modulus=params.moduli[0],
     )
     message1 = np.array([1, 2, 3, 4], dtype=np.complex64)
     message2 = np.array([2, 3, 1, 2], dtype=np.complex64)

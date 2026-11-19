@@ -4,18 +4,18 @@ import numpy as np
 
 from context import CKKSContext
 from ntt import NTT_64_BIT_PRIME
-from params import EncodingParams
 from rng import SeededRandomSource
+from test_utils import single_limb_encoding_and_ntt_params
 
 
 def test_symmetric_encrypt_decrypt():
     scale = 2**20
     seed = 837465
     message = np.array([1, 2, 3, 4], dtype=np.complex64)
-    encoding_params = EncodingParams(
+    encoding_params, _ = single_limb_encoding_and_ntt_params(
         scale=scale,
         poly_modulus_degree=8,
-        coefficient_modulus=NTT_64_BIT_PRIME,
+        modulus=NTT_64_BIT_PRIME,
     )
     context = CKKSContext(encoding_params)
     context.rng = SeededRandomSource(seed)
@@ -33,10 +33,10 @@ def test_asymmetric_encrypt_decrypt():
     scale = 2**20
     seed = 837465
     message = np.array([1, 2, 3, 4], dtype=np.complex64)
-    encoding_params = EncodingParams(
+    encoding_params, _ = single_limb_encoding_and_ntt_params(
         scale=scale,
         poly_modulus_degree=8,
-        coefficient_modulus=NTT_64_BIT_PRIME,
+        modulus=NTT_64_BIT_PRIME,
     )
     context = CKKSContext(encoding_params)
     context.rng = SeededRandomSource(seed)

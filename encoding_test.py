@@ -5,6 +5,7 @@ import numpy as np
 from encoding import encode, decode
 from params import EncodingParams, NTTParams
 from ntt import NTT_32_BIT_PRIME, NTT_64_BIT_PRIME
+from test_utils import single_limb_encoding_and_ntt_params
 
 # Example D-3.1.1 from
 # https://fhetextbook.github.io/EncodingandDecoding.html#encoding-and-decoding
@@ -29,17 +30,11 @@ from ntt import NTT_32_BIT_PRIME, NTT_64_BIT_PRIME
 
 def test_encode():
     message = np.array([1, 2])
-    params = EncodingParams(
+    params, ntt_params = single_limb_encoding_and_ntt_params(
         scale=1024,
         poly_modulus_degree=4,
-        moduli=[NTT_32_BIT_PRIME],
+        modulus=NTT_32_BIT_PRIME,
     )
-    ntt_params = [
-        NTTParams(
-            degree=params.poly_modulus_degree,
-            modulus=params.moduli[0],
-        )
-    ]
     plaintext = encode(message, params, ntt_params)
     expected = [1536, -362, 0, 362]
     np.testing.assert_equal(
@@ -49,17 +44,11 @@ def test_encode():
 
 def test_encode_decode_exact():
     message = np.array([3 + 4j, 2 - 1j, 1 + 0j, 0 + 2j])
-    params = EncodingParams(
+    params, ntt_params = single_limb_encoding_and_ntt_params(
         scale=2**20,
         poly_modulus_degree=8,
-        moduli=[NTT_32_BIT_PRIME],
+        modulus=NTT_32_BIT_PRIME,
     )
-    ntt_params = [
-        NTTParams(
-            degree=params.poly_modulus_degree,
-            modulus=params.moduli[0],
-        )
-    ]
     plaintext = encode(message, params, ntt_params)
     decoded_message = decode(plaintext, params)
     np.testing.assert_allclose(decoded_message, message, atol=1e-06)
@@ -76,17 +65,11 @@ def test_encode_decode_approx_equality(message):
     # encode + decode inherently loses precision due to the rounding step
     # of encoding. The amount of precision lost is decreased as the scale
     # is increased.
-    params = EncodingParams(
+    params, ntt_params = single_limb_encoding_and_ntt_params(
         scale=2**40,
         poly_modulus_degree=32,
-        moduli=[NTT_64_BIT_PRIME],
+        modulus=NTT_64_BIT_PRIME,
     )
-    ntt_params = [
-        NTTParams(
-            degree=params.poly_modulus_degree,
-            modulus=params.moduli[0],
-        )
-    ]
     encoded = encode(message, params, ntt_params)
     decoded = decode(encoded, params)
     np.testing.assert_allclose(decoded, message, rtol=0, atol=1e-06)
