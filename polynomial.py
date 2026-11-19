@@ -49,6 +49,7 @@ class IntPolynomial:
         self,
         coefficients: np.ndarray | Iterable[float],
         modulus_degree: int,
+        dtype=np.int64,
     ):
         """Construct a polynomial.
 
@@ -56,7 +57,7 @@ class IntPolynomial:
             coefficients: the coefficients of the polynomial.
             modulus_degree: the degree N of x^N + 1. Must be a power of two.
         """
-        self.coefficients = np.array(coefficients, dtype=np.int64)
+        self.coefficients = np.array(coefficients, dtype=dtype)
         self.modulus_degree = (
             modulus_degree if modulus_degree is not None else len(coefficients)
         )
