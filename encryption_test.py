@@ -6,7 +6,6 @@ import hypothesis
 from hypothesis import strategies as st
 import numpy as np
 
-from ckks_types import Plaintext
 from encoding import encode, decode
 from encryption import (
     decrypt_symmetric,
@@ -18,7 +17,11 @@ from key_gen import generate_symmetric_private_key, generate_asymmetric_keypair
 from params import EncryptionParams, NTTParams
 from ntt import NTT_32_BIT_PRIME, NTT_64_BIT_PRIME
 from rng import SeededRandomSource, ZeroNoiseRandomSource
-from test_utils import single_limb_encoding_and_ntt_params
+from test_utils import (
+    rns_encoding_and_ntt_params,
+    rns_params_and_plaintext,
+    single_limb_encoding_and_ntt_params,
+)
 from polynomial import IntPolynomial
 
 DEFAULT_ENCODING_PARAMS, DEFAULT_NTT_PARAMS = single_limb_encoding_and_ntt_params(
@@ -217,3 +220,82 @@ def test_encrypt_decrypt_asymmetric_64_bit_overflow():
     decoded = decode(decrypted_pt, encoding_params)
 
     np.testing.assert_allclose(decoded, message, rtol=0, atol=0.2)
+
+
+# Multi-limb RNS tests
+
+MESSAGES = st.lists(
+    st.complex_numbers(min_magnitude=1, max_magnitude=10),
+    min_size=4,
+    max_size=4,
+)
+
+
+@hypothesis.given(
+    MESSAGES,
+    rns_encoding_and_ntt_params(poly_modulus_degree=8),
+    st.integers(min_value=0, max_value=10),
+)
+@hypothesis.settings(deadline=5000)
+def test_encrypt_decrypt_rns_hypothesis(message, rns_params, seed):
+    encoding_params, ntt_params = rns_params
+    degree = encoding_params.poly_modulus_degree
+    params = EncryptionParams(degree=degree, moduli=encoding_params.moduli)
+    random_source = SeededRandomSource(seed)
+
+    sk = generate_symmetric_private_key(params, random_source)
+    pt = encode(message, encoding_params, ntt_params)
+    ct = encrypt_symmetric(pt, sk, params, random_source)
+    decrypted_pt = decrypt_symmetric(ct, sk, params)
+    decoded = decode(decrypted_pt, encoding_params)
+
+    np.testing.assert_allclose(decoded, message, rtol=0, atol=0.2)
+
+
+@hypothesis.given(rns_params_and_plaintext(poly_modulus_degree=8))
+@hypothesis.settings(deadline=5000)
+def test_exact_encrypt_decrypt_rns(params_and_pt):
+    encoding_params, ntt_params, pt = params_and_pt
+    degree = encoding_params.poly_modulus_degree
+    params = EncryptionParams(degree=degree, moduli=encoding_params.moduli)
+
+    random_source = ZeroNoiseRandomSource()
+    sk = generate_symmetric_private_key(params, random_source)
+    ct = encrypt_symmetric(pt, sk, params, random_source)
+    decrypted_pt = decrypt_symmetric(ct, sk, params)
+    assert decrypted_pt == pt
+
+
+@hypothesis.given(
+    MESSAGES,
+    rns_encoding_and_ntt_params(poly_modulus_degree=8),
+    st.integers(min_value=0, max_value=10),
+)
+@hypothesis.settings(deadline=5000)
+def test_encrypt_decrypt_asymmetric_rns_hypothesis(message, rns_params, seed):
+    encoding_params, ntt_params = rns_params
+    degree = encoding_params.poly_modulus_degree
+    params = EncryptionParams(degree=degree, moduli=encoding_params.moduli)
+    random_source = SeededRandomSource(seed)
+
+    sk, pk = generate_asymmetric_keypair(params, ntt_params, random_source)
+    pt = encode(message, encoding_params, ntt_params)
+    ct = encrypt_asymmetric(pt, pk, params, random_source)
+    decrypted_pt = decrypt_asymmetric(ct, sk, params)
+    decoded = decode(decrypted_pt, encoding_params)
+
+    np.testing.assert_allclose(decoded, message, rtol=0, atol=0.2)
+
+
+@hypothesis.given(rns_params_and_plaintext(poly_modulus_degree=8))
+@hypothesis.settings(deadline=5000)
+def test_exact_encrypt_decrypt_asymmetric_rns(params_and_pt):
+    encoding_params, ntt_params, pt = params_and_pt
+    degree = encoding_params.poly_modulus_degree
+    params = EncryptionParams(degree=degree, moduli=encoding_params.moduli)
+
+    random_source = ZeroNoiseRandomSource()
+    sk, pk = generate_asymmetric_keypair(params, ntt_params, random_source)
+    ct = encrypt_asymmetric(pt, pk, params, random_source)
+    decrypted_pt = decrypt_asymmetric(ct, sk, params)
+    assert decrypted_pt == pt
