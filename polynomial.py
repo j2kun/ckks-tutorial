@@ -303,18 +303,19 @@ class RNSPolynomial:
     # A function mapping (limb index, polynomial) ->  polynomial
     LimbProcessor = Callable[[int, ModQPolynomial], ModQPolynomial]
 
+    # A function mapping (limb index, polynomial, polynomial) ->  polynomial
+    LimbZipper = Callable[[int, ModQPolynomial, ModQPolynomial], ModQPolynomial]
+
     # A function mapping (coefficient index, residues) -> T
     CoefficientProcessor = Callable[[int, np.ndarray], T]
 
-    def __init__(
-        self,
-        limbs: tuple[ModQPolynomial, ...],
-    ):
+    def __init__(self, limbs: Iterable[ModQPolynomial]):
         """Construct an RNS polynomial.
 
         Args:
             limbs: the RNS limbs of the polynomial
         """
+        limbs = list(limbs)
         self.limbs = limbs
 
         if len(limbs) == 0:
@@ -347,6 +348,17 @@ class RNSPolynomial:
             tuple(func(i, limb) for (i, limb) in enumerate(self.limbs))
         )
 
+    @staticmethod
+    def zip_limbwise(
+        p1: "RNSPolynomial", p2: "RNSPolynomial", func: LimbZipper
+    ) -> "RNSPolynomial":
+        """Apply func to each polynomial limb."""
+        return RNSPolynomial(
+            tuple(
+                func(i, l1, l2) for (i, (l1, l2)) in enumerate(zip(p1.limbs, p2.limbs))
+            )
+        )
+
     def apply_coefficientwise(self, func: CoefficientProcessor) -> list[T]:
         """Apply func to each coefficient's vector of residues."""
         # Shape (num_limbs, N): row j holds the coefficients of limb j, so
@@ -377,6 +389,59 @@ class RNSPolynomial:
         return IntPolynomial(
             coefficients, modulus_degree=self.modulus_degree, dtype=object
         )
+
+    def _assert_compatible(self, other):
+        if isinstance(other, IntPolynomial):
+            return True  # IntPolynomial is dynamically converted via to_rns
+
+        if isinstance(other, RNSPolynomial):
+            if len(self.limbs) != len(other.limbs):
+                raise ValueError(
+                    "Incompatible RNSPolynomial operands with differing limb counts"
+                    f"{len(self.limbs)} and {len(other.limbs)}"
+                )
+            for l1, l2 in zip(self.limbs, other.limbs):
+                l1._assert_compatible(l2)
+
+        else:
+            raise ValueError(
+                f"Invalid operand of type {type(other)} "
+                "to RNSPolynomial arithmetic routine."
+            )
+
+    def _maybe_cast_other(self, other):
+        if isinstance(other, IntPolynomial):
+            return other.to_rns(self.ntt_params)
+        return other
+
+    def __mul__(self, other):
+        self._assert_compatible(other)
+        other = self._maybe_cast_other(other)
+        return RNSPolynomial.zip_limbwise(self, other, lambda i, l1, l2: l1 * l2)
+
+    def __rmul__(self, other):
+        return self.__mul__(other)
+
+    def __add__(self, other):
+        self._assert_compatible(other)
+        other = self._maybe_cast_other(other)
+        return RNSPolynomial.zip_limbwise(self, other, lambda i, l1, l2: l1 + l2)
+
+    def __radd__(self, other):
+        return self.__add__(other)
+
+    def __sub__(self, other):
+        self._assert_compatible(other)
+        other = self._maybe_cast_other(other)
+        return RNSPolynomial.zip_limbwise(self, other, lambda i, l1, l2: l1 - l2)
+
+    def __rsub__(self, other):
+        self._assert_compatible(other)
+        other = self._maybe_cast_other(other)
+        return RNSPolynomial.zip_limbwise(other, self, lambda i, l1, l2: l1 - l2)
+
+    def __neg__(self):
+        return self.apply_limbwise(lambda i, limb: -limb)
 
 
 def make_rns_polynomial(
