@@ -3,10 +3,15 @@ import numpy as np
 from hypothesis import given
 import hypothesis.strategies as st
 
+from params import NTTParams
+from polynomial import ModQPolynomial
+from polynomial import RNSPolynomial
 from polynomial import canonical_embedding
 from polynomial import canonical_embedding_vandermonde
 from polynomial import inverse_canonical_embedding
 from polynomial import inverse_canonical_embedding_vandermonde
+from polynomial import make_rns_polynomial
+from primes import generate_ntt_primes
 
 
 def test_canonical_embedding():
@@ -97,3 +102,39 @@ def test_inverse_then_embed(vector):
     recovered_poly = inverse_canonical_embedding(np.array(vector))
     reembedded = canonical_embedding(recovered_poly)
     np.testing.assert_allclose(reembedded, vector, rtol=0, atol=1e-7)
+
+
+@st.composite
+def rns_polynomial(
+    draw: st.DrawFn, num_limbs: int = 3, poly_modulus_degree: int = 16
+) -> RNSPolynomial:
+    """Draw a random RNS polynomial."""
+
+    def coeff_picker(deg, modulus):
+        return draw(st.integers(min_value=0, max_value=modulus - 1))
+
+    return make_rns_polynomial(
+        num_limbs=num_limbs,
+        poly_modulus_degree=poly_modulus_degree,
+        coeff_picker=coeff_picker,
+        bit_width=60,
+    )
+
+
+@given(rns_polynomial(num_limbs=3, poly_modulus_degree=16))
+def test_rns_polynomial_lift_to_signed_and_reduce(rns_poly):
+    lifted = rns_poly.lift_to_signed_representative()
+    reduced = lifted.to_rns(rns_poly.ntt_params)
+    assert reduced == rns_poly
+
+
+def test_rns_polynomial_lift_centers_coeffs():
+    rns_poly = make_rns_polynomial(
+        num_limbs=3,
+        poly_modulus_degree=16,
+        coeff_picker=lambda i, q: q - 1,
+        bit_width=60,
+    )
+
+    lifted = rns_poly.lift_to_signed_representative()
+    assert all(coeff < 0 for coeff in lifted.coefficients)

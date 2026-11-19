@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Callable, Iterable, Sequence, TypeVar
 import math
 
 from numpy.fft import fft, ifft
@@ -6,6 +6,13 @@ import numpy as np
 
 from ntt import negacyclic_polymul_ntt
 from params import NTTParams
+import rns
+
+# A callable (degree, modulus) -> coefficient
+# to help generating RNS polynomials
+CoeffPicker = Callable[[int, int], int]
+
+T = TypeVar("T")
 
 
 def primitive_nth_root(n):
@@ -132,6 +139,21 @@ class IntPolynomial:
             coefficient_modulus=ntt_params.modulus,
             ntt_params=ntt_params,
         )
+
+    def to_rns(self, ntt_params: Sequence[NTTParams]) -> "RNSPolynomial":
+        """Reduce this polynomial's coefficients mod a list of primes."""
+        # Reduce with Python ints before constructing each limb, since the
+        # coefficients may be bigints (dtype=object) that overflow int64.
+        limbs = tuple(
+            ModQPolynomial(
+                [int(c) % ntt_param.modulus for c in self.coefficients],
+                modulus_degree=self.modulus_degree,
+                coefficient_modulus=ntt_param.modulus,
+                ntt_params=ntt_param,
+            )
+            for ntt_param in ntt_params
+        )
+        return RNSPolynomial(limbs)
 
 
 class ModQPolynomial:
@@ -273,6 +295,112 @@ class ModQPolynomial:
             other.coefficient_modulus,
             other.ntt_params,
         )
+
+
+class RNSPolynomial:
+    """A ModQPolynomial with a large Q, represented in the residue number system."""
+
+    # A function mapping (limb index, polynomial) ->  polynomial
+    LimbProcessor = Callable[[int, ModQPolynomial], ModQPolynomial]
+
+    # A function mapping (coefficient index, residues) -> T
+    CoefficientProcessor = Callable[[int, np.ndarray], T]
+
+    def __init__(
+        self,
+        limbs: tuple[ModQPolynomial, ...],
+    ):
+        """Construct an RNS polynomial.
+
+        Args:
+            limbs: the RNS limbs of the polynomial
+        """
+        self.limbs = limbs
+
+        if len(limbs) == 0:
+            raise ValueError("Must have at least one limb")
+
+        if not all(limb.modulus_degree == limbs[0].modulus_degree for limb in limbs):
+            raise ValueError("All limbs must have the same modulus degree!")
+
+    @property
+    def ntt_params(self) -> tuple[NTTParams, ...]:
+        return tuple(limb.ntt_params for limb in self.limbs)
+
+    @property
+    def moduli(self) -> list[int]:
+        return [limb.coefficient_modulus for limb in self.limbs]
+
+    @property
+    def modulus_degree(self) -> int:
+        return self.limbs[0].modulus_degree
+
+    def __len__(self) -> int:
+        return len(self.limbs)
+
+    def __eq__(self, other) -> bool:
+        return isinstance(other, RNSPolynomial) and self.limbs == other.limbs
+
+    def apply_limbwise(self, func: LimbProcessor) -> "RNSPolynomial":
+        """Apply func to each polynomial limb."""
+        return RNSPolynomial(
+            tuple(func(i, limb) for (i, limb) in enumerate(self.limbs))
+        )
+
+    def apply_coefficientwise(self, func: CoefficientProcessor) -> list[T]:
+        """Apply func to each coefficient's vector of residues."""
+        # Shape (num_limbs, N): row j holds the coefficients of limb j, so
+        # column i holds the residues of coefficient i.
+        residues = np.stack([limb.coefficients for limb in self.limbs])
+        return [func(i, residues[:, i]) for i in range(self.modulus_degree)]
+
+    def lift_to_signed_representative(self) -> IntPolynomial:
+        """RNS-reconstructs the polynomial to have bigint coefficients.
+
+        If this RNSPolynomial has one limb, then no work is done and the
+        returned IntPolynomial has dtype=np.int64, otherwise the RNS
+        reconstruction is applied and the resulting IntPolynomial has
+        dtype=object storing Python integers.
+        """
+        if len(self) == 1:
+            return self.limbs[0].lift_to_signed_representative()
+
+        moduli = self.moduli
+        Q = math.prod(moduli)
+
+        def recompose_centered(coeff_index: int, residues: np.ndarray) -> int:
+            c = rns.recompose(residues, moduli)
+            # recompose returns a value in [0, Q); center it in (-Q/2, Q/2].
+            return c - Q if c > Q // 2 else c
+
+        coefficients: list[int] = self.apply_coefficientwise(recompose_centered)
+        return IntPolynomial(
+            coefficients, modulus_degree=self.modulus_degree, dtype=object
+        )
+
+
+def make_rns_polynomial(
+    num_limbs: int,
+    poly_modulus_degree: int,
+    coeff_picker: CoeffPicker,
+    bit_width: int = 60,
+):
+    """Generate an RNSPolynomial procedurally."""
+    from primes import generate_ntt_primes
+
+    primes = generate_ntt_primes(
+        bit_width=bit_width,
+        poly_modulus_degree=poly_modulus_degree,
+        count=num_limbs,
+    )
+
+    limbs = []
+    for prime in primes:
+        coeffs = [coeff_picker(i, prime) for i in range(poly_modulus_degree)]
+        ntt_params = NTTParams(degree=poly_modulus_degree, modulus=prime)
+        limbs.append(ModQPolynomial(coeffs, poly_modulus_degree, prime, ntt_params))
+
+    return RNSPolynomial(tuple(limbs))
 
 
 def vandermonde_matrix(n: int) -> np.ndarray:
